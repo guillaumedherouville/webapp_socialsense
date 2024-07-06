@@ -43,7 +43,7 @@ def main():
             start_time = time.time()
 
             log_progress(progress_container, "Extracting comments...", start_time)
-            comments = generate_comments_df(video_id)
+            comments = generate_comments_df(video_id, st.secrets["YT_KEY"])
 
             log_progress(progress_container, "Cleaning comments...", start_time)
             comments = df_character_cleaning(comments)

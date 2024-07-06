@@ -92,9 +92,9 @@ def get_video_comments(service, **kwargs):
     return comments
 
 
-def generate_comments_df(video_id):
+def generate_comments_df(video_id, key):
     # setup
-    api_key = os.getenv("YOUTUBE")
+    api_key = key
     http = httplib2.Http()
     service_name = "youtube"
     version = "v3"
