@@ -1,13 +1,8 @@
-# File Imports
-# from api.config import movies
 import os
 import numpy as np
 import pandas as pd
 import re
 from dotenv import load_dotenv
-
-# import matplotlib.pyplot as plt
-# import seaborn as sns
 from tqdm import tqdm
 from transformers import pipeline
 import nltk
@@ -16,7 +11,7 @@ import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 import emoji
 
-# import tiktoken
+import tiktoken
 from imdb import IMDb
 
 import spacy
@@ -29,34 +24,35 @@ from googleapiclient.discovery import build_from_document
 from tqdm.auto import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
-# import time
-# from openai.error import (
-#     APIError,
-#     OpenAIError,
-#     RateLimitError,
-#     ServiceUnavailableError,
-#     Timeout,
-#     TryAgain,
-# )
+import time
+from openai.error import (
+    APIError,
+    OpenAIError,
+    RateLimitError,
+    ServiceUnavailableError,
+    Timeout,
+    TryAgain,
+)
+
 # from sklearn.feature_extraction.text import CountVectorizer
 # from sklearn.decomposition import LatentDirichletAllocation
 # from bs4 import BeautifulSoup
 
-# from google.colab import files
 # from IPython.display import display, Markdown
 # import io
-# import openai
+import openai
 import html
 
-# import json
-# import ast
-# import concurrent.futures
-# import requests
+import json
+import ast
+import concurrent.futures
+import requests
 
 nltk.download("stopwords")
 nltk.download("vader_lexicon")
 load_dotenv()
-pd.options.display.max_colwidth = 100
+encoding = tiktoken.encoding_for_model("gpt-4o")
+
 
 classifier_1 = pipeline(
     "sentiment-analysis",
@@ -92,8 +88,31 @@ def get_video_comments(service, **kwargs):
     return comments
 
 
-def generate_comments_df(video_id, key):
-    # setup
+# def generate_comments_df(video_id, key):
+#     # setup
+#     api_key = key
+#     http = httplib2.Http()
+#     service_name = "youtube"
+#     version = "v3"
+#     discovery_url = (
+#         f"https://www.googleapis.com/discovery/v1/apis/{service_name}/{version}/rest"
+#     )
+#     print("discovery_url", discovery_url)
+#     discovery_http = http.request(discovery_url)[1]
+#     youtube_service = build_from_document(discovery_http, developerKey=api_key)
+#     trailer_ids = [video_id]
+#     df_list = []
+#     print("trailer_ids", trailer_ids)
+#     for idx, video_id in enumerate(trailer_ids):
+#         comments = get_video_comments(youtube_service, part="snippet", videoId=video_id)
+#         df = pd.DataFrame(comments, columns=["comment"])
+#         df_list.append(df)
+#     temp = pd.concat(df_list)
+#     return temp
+
+
+def generate_comments_df(video_id, key, max_comments=1050):
+    # setu
     api_key = key
     http = httplib2.Http()
     service_name = "youtube"
@@ -104,15 +123,26 @@ def generate_comments_df(video_id, key):
     print("discovery_url", discovery_url)
     discovery_http = http.request(discovery_url)[1]
     youtube_service = build_from_document(discovery_http, developerKey=api_key)
-    trailer_ids = [video_id]
-    df_list = []
-    print("trailer_ids", trailer_ids)
-    for idx, video_id in enumerate(trailer_ids):
-        comments = get_video_comments(youtube_service, part="snippet", videoId=video_id)
-        df = pd.DataFrame(comments, columns=["comment"])
-        df_list.append(df)
-    temp = pd.concat(df_list)
-    return temp
+    comments = []
+    next_page_token = None
+    while len(comments) < max_comments:
+        kwargs = {
+            "part": "snippet",
+            "videoId": video_id,
+            "maxResults": min(100, max_comments - len(comments)),
+        }
+        if next_page_token:
+            kwargs["pageToken"] = next_page_token
+
+        page_comments = get_video_comments(youtube_service, **kwargs)
+        comments.extend(page_comments)
+        if len(page_comments) < kwargs["maxResults"]:
+            break
+        if len(comments) >= max_comments:
+            break
+    # Create DataFrame
+    df = pd.DataFrame(comments, columns=["comment"])
+    return df
 
 
 def remove_emojis_and_apostrophes(text):
@@ -311,7 +341,7 @@ def analyze_sentiment(comment):
     return sentiment_class
 
 
-def sentiments_df(to_summarize):
+def create_sentiments_df(to_summarize):
     sentiments = []
     for comment in to_summarize:
         sentiment = analyze_sentiment(comment)
@@ -321,7 +351,7 @@ def sentiments_df(to_summarize):
 
 
 def entities_table(entity_mentions, sentiments_df):
-    mentions = entity_mentions.loc[:, (entity_mentions.sum(0) > 3)].copy()
+    mentions = entity_mentions.loc[:, (entity_mentions.sum(0) >= 3)].copy()
     mentions = mentions.loc[mentions.sum(1) > 0, :].copy()
     sentiment_mentions = sentiments_df.loc[mentions.index, :].copy()
     mentions["sentiment"] = sentiment_mentions
@@ -340,4 +370,178 @@ def entities_table(entity_mentions, sentiments_df):
     # Rename the first column to "Total Mentions"
     data = data.rename(columns={0: "Total Mentions"})
     data = data.loc[column_order, :]
-    return data.head(8)
+    return data
+
+
+# ChatGPT Section
+def num_tokens_from_string(string: str) -> int:
+    """Returns the number of tokens in a text string."""
+    num_tokens = len(encoding.encode(string))
+    return num_tokens
+
+
+def chunkify_by_tokens(text, max_tokens):
+    words = text.split()
+    chunks = []
+    chunk = []
+    chunk_tokens = 0
+
+    for word in words:
+        word_tokens = num_tokens_from_string(word)
+
+        if chunk_tokens + word_tokens <= max_tokens:
+            chunk.append(word)
+            chunk_tokens += word_tokens
+        else:
+            chunks.append(" ".join(chunk))
+            chunk = [word]
+            chunk_tokens = word_tokens
+
+    # Add the last chunk if it's not empty
+    if chunk:
+        chunks.append(" ".join(chunk))
+
+    return chunks
+
+
+class ChatGPT:
+    def __init__(self, model="gpt-4o", system_message=None):
+        self.model = model
+        if system_message:
+            self.default_system_message = {"role": "system", "content": system_message}
+        else:
+            self.default_system_message = {
+                "role": "system",
+                "content": "Hello! You are the MovieCommentBot. I can answer questions about movies and fans reactions to movies and movie trailers",
+            }
+        self.messages = [self.default_system_message]
+
+    def add_system_message(self, message, reset_chat=False):
+        if reset_chat:
+            self.messages = [self.default_system_message]
+
+        self.messages.append({"role": "system", "content": message})
+
+    def add_user_message(self, message, reset_chat=False):
+        if reset_chat:
+            self.messages = [self.default_system_message]
+        self.messages.append({"role": "user", "content": message})
+
+    def get_response(self):
+        response = None
+        retries = 0
+        while response is None and retries < 6:
+            try:
+                response = self.send_chat_request()
+            except (APIError, OpenAIError, RateLimitError, Timeout) as e:
+                print(f"Error: {e}")
+                time.sleep(60)  # Wait for 1 minute before retrying
+                retries += 1
+
+        if response is None:
+            # If all retries failed, escalate the delay time
+            time.sleep(2**retries)
+
+        return self.process_response(response)
+
+    def send_chat_request(self):
+        response = openai.ChatCompletion.create(
+            model=self.model, messages=self.messages
+        )
+        return response
+
+    def process_response(self, response):
+        # Add the assistant's message to the messages list
+        assistant_message = response["choices"][0]["message"]["content"]
+        self.messages.append({"role": "assistant", "content": assistant_message})
+        return assistant_message
+
+
+def TOTAL_SUMMARIZER(texts, token_threshold):
+    text = "\n".join(texts)
+    chunks = chunkify_by_tokens(text, token_threshold)
+
+    first_pass_summaries = []
+
+    for ci, chunk in enumerate(chunks):
+        summarize_prompt = f"Please summarize the following set of comments: \
+                            \n\n### COMMENT TEXT\n{chunk}\n\n### BEGIN RESPONSE\n"
+        try:
+            chat = ChatGPT(
+                system_message="You are an expert text summarizer and analyzer."
+            )
+            chat.add_user_message(summarize_prompt)
+            summarized_chunk = chat.get_response()
+            first_pass_summaries.append(summarized_chunk)
+
+        except Exception as e:
+            print(f"Error during initial summarization: {e}")
+            # Continue to next chunk instead of returning
+            continue
+
+    candidate_text = "\n".join(first_pass_summaries)
+
+    iterations = 0
+    candidate_len = np.inf
+
+    while candidate_len > token_threshold:
+        iterations += 1
+        chunks = chunkify_by_tokens(candidate_text, token_threshold)
+
+        summarized_chunks = []
+        for chunk in chunks:
+            try:
+                chat = ChatGPT(
+                    system_message="You are an expert text summarizer and analyzer. You are recursively summarizing topics expressed by consumers to select the most commonly expressed topics."
+                )
+                summarize_prompt = f"This is a summarization of comments regarding a movie trailer, concerning a movie with this information: \n {movie_info_str} \n. \
+                                    List the top 5 most promininent positive aspects of the trailer/film that commenters like and want to see more of.\
+                                    List the top 5 most promininent negative aspects of the trailer/film that commenters dislike and/or might cause them to not watch the film.\
+                                    Be specific in your generation of topics, and ensure that each topic is distinct. \
+                                    \n### TEXT\n{chunk}\n\n### BEGIN RESPONSE\n"
+                chat.add_user_message(summarize_prompt)
+                summarized_chunk = chat.get_response()
+                # Verify and process the summarized chunk here if necessary
+                summarized_chunks.append(summarized_chunk)
+            except Exception as e:
+                print(f"Error during iterative summarization: {e}")
+                # Optionally handle the error, like retrying summarization for this chunk
+                continue
+
+        candidate_text = " ".join(summarized_chunks)
+        candidate_len = num_tokens_from_string(candidate_text)
+
+    try:
+        chat = ChatGPT(
+            system_message="You are an expert text summarizer and analyzer for a production company. Please analyze from the perspective of a producer for this movie. \
+                                    You will select the most common topics expressed by consumers regarding a movie trailer."
+        )
+        summarize_prompt = f"""This is a summarization of comments regarding a movie trailer, concerning a movie with this information: \n {movie_info_str} \n. \
+                            First, list the top 5 most promininent positive aspects of the trailer/film that commenters like and want to see more of.\
+                            Next, list the top 5 most promininent negative aspects of the trailer/film that commenters dislike and/or might cause them to not watch the film.\
+                            Please place them in a single list separated by by numbers (ex. 1. Theme 1 \n 2. Theme 2 \n etc.) and nothing else \
+                            (for example, do not separate into positive and negative groupings. Rather express how they are positive and negative in the themes themseleves) \
+                            Also, DO NOT use any apostrophes (') in your response. \
+                            In your generation, allow for the topics to be mutually exclusive and collectively exhaustive; each topic should be unique, but all the topics together should comprise the most prominent ideas expressed.\
+                            Do not generate more than the 5 positive topics, followed by the 5 negative topics, for a total of 10 topics separeted by one space each. \
+                            Here is an example to guide you on how a response should be structured: \
+                            1. Positive anticipation for George Millers unique directorial style and passionate fan base hoping to see it continued.
+                            2. Thrilled about the increased focus and storyline around Furiosas character and her increased role in future films.
+                            3. Great expectations for Anya Taylor-Joy and Chris Hemsworths performances, as well as other major players in the film.
+                            4. Excitement for the continuation and expansion of the Mad Max franchise and universe.
+                            5. Praise for the trailer's music and visually-appealing components which give a glimpse into the films quality.
+                            6. Negative reactions due to the absence of the main character, Mad Max, portrayed by Tom Hardy, causing doubts among viewers.
+                            7. Dislike for perceived overreliance on CGI, as viewers believe it takes away from the gritty reality originally established in the series.
+                            8. Concerns about perceived forced female empowerment and an overshadowing feminist agenda.
+                            9. Doubts about the casting of Anya Taylor-Joy and Chris Hemsworth, with some fans feeling they may not fit the franchises aesthetics.
+                            10. Disappointment due to the lack of traditional practical effects and real stunt work, which viewers believe adds authenticity to the series.
+                            \n### TEXT\n{candidate_text}\n\n### BEGIN RESPONSE\n"""
+        chat.add_user_message(summarize_prompt)
+        final_response = chat.get_response()
+        # Verify and process the summarized chunk here if necessary
+    except Exception as e:
+        print(f"Error during iterative summarization: {e}")
+        # Optionally handle the error, like retrying summarization for this chunk
+        return candidate_text
+
+    return final_response
