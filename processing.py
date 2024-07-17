@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 from transformers import pipeline
 import nltk
+from functools import partial
 
 # from nltk.corpus import stopwords
 from nltk.sentiment import SentimentIntensityAnalyzer
@@ -89,7 +90,6 @@ def get_video_comments(service, **kwargs):
 
 
 def generate_comments_df(video_id, key, max_comments=1050):
-    # setu
     api_key = key
     http = httplib2.Http()
     service_name = "youtube"
@@ -117,7 +117,6 @@ def generate_comments_df(video_id, key, max_comments=1050):
             break
         if len(comments) >= max_comments:
             break
-    # Create DataFrame
     df = pd.DataFrame(comments, columns=["comment"])
     return df
 
@@ -318,7 +317,7 @@ def analyze_sentiment(comment):
     return sentiment_class
 
 
-def create_sentiments_df(to_summarize):
+def sentiment_by_comment(to_summarize):
     sentiments = []
     for comment in to_summarize:
         sentiment = analyze_sentiment(comment)
@@ -560,7 +559,7 @@ def split_comments(texts, max_tokens):
     return chunks
 
 
-def generate_summary(text):
+def generate_summary(text, all_resp):
     " \n".join(t for t in text)
     topic_analysis_prompt = f"""The following statements represent general expressed themes associated with a set of movie trailer comments \n {all_resp} \n
   You will be given a set of comments concerning the same movie trailer. For each comment, I would like you
@@ -668,12 +667,92 @@ Please output in the same format for this comment {text} and the provided themes
     return summarized_chunk
 
 
-def UPDATED_COUNTER_COMMENTS_parallel(texts):
+def generate_summary_marketing(resp_list, movie_info_str):
+    topic_analysis_prompt = f"""
+    Here is information on the given film of interest: {movie_info_str}
+
+    Here are the general topics people are discussing related to this film: \n {resp_list, movie_info_str}
+
+    Given the topics that users are speaking about your movie trailer, output 5 of the most relevant marketing suggestions you can concoct to help promote the film in list-format, with details for being included in application to this specific film.
+
+    Please lend creative and specific suggestions to help market this film.
+
+    Please ensure each suggestion is unique; do not repeat similar suggestions multiple times.
+
+    Start directly with the list, do not include other text, and be concise (yet detailed) in your suggestions.
+  """
+    try:
+        chat = ChatGPT(
+            system_message="You are an expert marketing analyzer who outputs marketing advice given topics that users are speaking about."
+        )
+        chat.add_user_message(topic_analysis_prompt)
+        summarized_chunk = chat.get_response()
+
+    except Exception as e:
+        print(f"Error during initial summarization: {e}")
+
+    return summarized_chunk
+
+
+def UPDATED_COUNTER_COMMENTS_parallel(texts, all_resp):
+    partial_generate_summary = partial(generate_summary, all_resp=all_resp)
     try:
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            comment_jsons = list(executor.map(generate_summary, texts))
+            comment_jsons = list(executor.map(partial_generate_summary, texts))
 
     except Exception as e:
         print(f"Error during initial summarization: {e}")
         # return comment_jsons
     return comment_jsons
+
+
+def step_1(to_summarize, all_resp):
+    max_tokens = 200
+    chunks = split_comments(to_summarize, max_tokens)
+    all_jsons = UPDATED_COUNTER_COMMENTS_parallel(chunks[:5], all_resp)
+    return all_jsons
+
+
+def step_2(all_jsons):
+    data_dicts = []
+    for sample in all_jsons:
+        # Correcting the incorrect escape of single quotes and converting HTML entities
+        sample = sample.replace("\\'", "'").replace("&#39;", "'")
+        try:
+            # Try to convert to a dictionary using ast.literal_eval
+            data_dict = ast.literal_eval(sample)
+        except:
+            # If ast.literal_eval fails, try json.loads
+            try:
+                data_dict = json.loads(sample)
+            except:
+                continue
+        data_dicts.append(data_dict)
+    return data_dicts
+
+
+def flatten_concatenation(matrix):
+    flat_list = []
+    for row in matrix:
+        flat_list += row
+    return flat_list
+
+
+def step_3(data_dicts):
+    flattened_data = flatten_concatenation(data_dicts)
+    new_data = []
+    for data in flattened_data:
+        if isinstance(data, dict):
+            print("+1")
+            new_dict = {}
+            for key, value in data.items():
+                # Convert string keys to integers if possible
+                try:
+                    new_key = int(key)
+                except ValueError:
+                    new_key = key
+                new_dict[new_key] = value
+            new_data.append(new_dict)
+        else:
+            print(f"Skipped non-dict item: {data}")
+    return new_data
