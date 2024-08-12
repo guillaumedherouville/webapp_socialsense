@@ -3,57 +3,29 @@ import numpy as np
 import pandas as pd
 import re
 from dotenv import load_dotenv
-from tqdm import tqdm
 from transformers import pipeline
 import nltk
 from functools import partial
-
-# from nltk.corpus import stopwords
 from nltk.sentiment import SentimentIntensityAnalyzer
 import emoji
-
 import tiktoken
 from imdb import IMDb
-
 import spacy
-
-# from langdetect import detect
-
-# import copy
 import httplib2
 from googleapiclient.discovery import build_from_document
-from tqdm.auto import tqdm
 from concurrent.futures import ThreadPoolExecutor
-
 import time
-from openai.error import (
-    APIError,
-    OpenAIError,
-    RateLimitError,
-    ServiceUnavailableError,
-    Timeout,
-    TryAgain,
-)
-
-# from sklearn.feature_extraction.text import CountVectorizer
-# from sklearn.decomposition import LatentDirichletAllocation
-# from bs4 import BeautifulSoup
-
-# from IPython.display import display, Markdown
-# import io
 import openai
 import html
-
 import json
 import ast
 import concurrent.futures
-import requests
+import streamlit as st
 
 nltk.download("stopwords")
 nltk.download("vader_lexicon")
 load_dotenv()
 encoding = tiktoken.encoding_for_model("gpt-4o")
-
 
 classifier_1 = pipeline(
     "sentiment-analysis",
@@ -69,27 +41,26 @@ classifier_2 = pipeline(
 tokenizer_kwargs = {"padding": True, "truncation": True, "max_length": 500}
 
 
-def get_video_comments(service, **kwargs):
+def get_video_comments(service, max_comments=None, **kwargs):
     comments = []
     results = service.commentThreads().list(**kwargs).execute()
-
-    with tqdm() as progress_bar:  # create a progress bar
-        while results:
-            for item in results["items"]:
-                comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
-                comments.append(comment)
-
-            progress_bar.update()  # update progress bar
-
-            if "nextPageToken" in results:
-                kwargs["pageToken"] = results["nextPageToken"]
-                results = service.commentThreads().list(**kwargs).execute()
-            else:
-                break
+    while results:
+        for item in results["items"]:
+            comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+            comments.append(comment)
+            if max_comments and len(comments) >= max_comments:
+                return comments
+        if "nextPageToken" in results and (
+            not max_comments or len(comments) < max_comments
+        ):
+            kwargs["pageToken"] = results["nextPageToken"]
+            results = service.commentThreads().list(**kwargs).execute()
+        else:
+            break
     return comments
 
 
-def generate_comments_df(video_id, key, max_comments=1050):
+def generate_comments(video_id, key, max_comments=1000):
     api_key = key
     http = httplib2.Http()
     service_name = "youtube"
@@ -97,28 +68,16 @@ def generate_comments_df(video_id, key, max_comments=1050):
     discovery_url = (
         f"https://www.googleapis.com/discovery/v1/apis/{service_name}/{version}/rest"
     )
-    print("discovery_url", discovery_url)
     discovery_http = http.request(discovery_url)[1]
     youtube_service = build_from_document(discovery_http, developerKey=api_key)
-    comments = []
-    next_page_token = None
-    while len(comments) < max_comments:
-        kwargs = {
-            "part": "snippet",
-            "videoId": video_id,
-            "maxResults": min(100, max_comments - len(comments)),
-        }
-        if next_page_token:
-            kwargs["pageToken"] = next_page_token
 
-        page_comments = get_video_comments(youtube_service, **kwargs)
-        comments.extend(page_comments)
-        if len(page_comments) < kwargs["maxResults"]:
-            break
-        if len(comments) >= max_comments:
-            break
-    df = pd.DataFrame(comments, columns=["comment"])
-    return df
+    kwargs = {
+        "part": "snippet",
+        "videoId": video_id,
+        "maxResults": 100,  # Keep this at 100 for efficiency
+    }
+
+    return get_video_comments(youtube_service, max_comments=max_comments, **kwargs)
 
 
 def remove_emojis_and_apostrophes(text):
@@ -138,13 +97,9 @@ def remove_emojis_and_apostrophes(text):
     return text
 
 
-def df_character_cleaning(df):
-    df = df.iloc[:1000]
-    temp_org = df.copy().reset_index(drop=True)
-    comments_t = temp_org["comment"].tolist()
+def df_character_cleaning(comments_t):
     comments_t = [remove_emojis_and_apostrophes(comment) for comment in comments_t]
-    temp_org["comment"] = comments_t
-    return temp_org
+    return comments_t
 
 
 # Define a function to get classifier results for a single comment
@@ -168,7 +123,6 @@ def get_comments_sentiment(comments):
 
 def comparison_table(all_scores, movie_id, movies):
     overall_sentiment = np.mean(np.array(all_scores).reshape(-1, 9), axis=0).tolist()
-    print(overall_sentiment)
     overall_sentiment_df = pd.DataFrame(overall_sentiment)
     overall_sentiment_df = overall_sentiment_df.transpose()
     overall_sentiment_df.columns = [
@@ -201,7 +155,6 @@ def comparison_table(all_scores, movie_id, movies):
         [overall_sentiment_df, new_rows], axis=0
     ).reset_index(drop=True)
     overall_sentiment_df.insert(0, "Title", titles)
-    print(overall_sentiment_df)
     return overall_sentiment_df
 
 
@@ -381,14 +334,15 @@ def chunkify_by_tokens(text, max_tokens):
 
 
 class ChatGPT:
-    def __init__(self, model="gpt-4o", system_message=None):
+    def __init__(self, model="gpt-4o-mini", system_message=None):
         self.model = model
+        self.client = openai.OpenAI()
         if system_message:
             self.default_system_message = {"role": "system", "content": system_message}
         else:
             self.default_system_message = {
                 "role": "system",
-                "content": "Hello! You are the MovieCommentBot. I can answer questions about movies and fans reactions to movies and movie trailers",
+                "content": "Hello! You are the MovieCommentBot. You can answer questions about movies and fans reactions to movies and movie trailers",
             }
         self.messages = [self.default_system_message]
 
@@ -404,31 +358,14 @@ class ChatGPT:
         self.messages.append({"role": "user", "content": message})
 
     def get_response(self):
-        response = None
-        retries = 0
-        while response is None and retries < 6:
-            try:
-                response = self.send_chat_request()
-            except (APIError, OpenAIError, RateLimitError, Timeout) as e:
-                print(f"Error: {e}")
-                time.sleep(60)  # Wait for 1 minute before retrying
-                retries += 1
-
-        if response is None:
-            # If all retries failed, escalate the delay time
-            time.sleep(2**retries)
-
-        return self.process_response(response)
-
-    def send_chat_request(self):
-        response = openai.ChatCompletion.create(
+        response = self.client.chat.completions.create(
             model=self.model, messages=self.messages
         )
-        return response
+        return self.process_response(response)
 
     def process_response(self, response):
         # Add the assistant's message to the messages list
-        assistant_message = response["choices"][0]["message"]["content"]
+        assistant_message = response.choices[0].message.content
         self.messages.append({"role": "assistant", "content": assistant_message})
         return assistant_message
 
@@ -559,7 +496,8 @@ def split_comments(texts, max_tokens):
     return chunks
 
 
-def generate_summary(text, all_resp):
+def match_topics_comments(text, all_resp):
+    print("matching in progress")
     " \n".join(t for t in text)
     topic_analysis_prompt = f"""The following statements represent general expressed themes associated with a set of movie trailer comments \n {all_resp} \n
   You will be given a set of comments concerning the same movie trailer. For each comment, I would like you
@@ -660,18 +598,21 @@ Please output in the same format for this comment {text} and the provided themes
         )
         chat.add_user_message(topic_analysis_prompt)
         summarized_chunk = chat.get_response()
-
+        summarized_chunk = json.loads(summarized_chunk)
+        print("matching done")
+        return summarized_chunk
     except Exception as e:
-        print(f"Error during initial summarization: {e}")
+        print(f"Error during matching: {e}")
+        print("text:", text)
+        return None
 
-    return summarized_chunk
 
-
+@st.cache_data
 def generate_summary_marketing(resp_list, movie_info_str):
     topic_analysis_prompt = f"""
     Here is information on the given film of interest: {movie_info_str}
 
-    Here are the general topics people are discussing related to this film: \n {resp_list, movie_info_str}
+    Here are the general topics people are discussing related to this film: \n {resp_list}
 
     Given the topics that users are speaking about your movie trailer, output 5 of the most relevant marketing suggestions you can concoct to help promote the film in list-format, with details for being included in application to this specific film.
 
@@ -694,65 +635,21 @@ def generate_summary_marketing(resp_list, movie_info_str):
     return summarized_chunk
 
 
-def UPDATED_COUNTER_COMMENTS_parallel(texts, all_resp):
-    partial_generate_summary = partial(generate_summary, all_resp=all_resp)
-    try:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            comment_jsons = list(executor.map(partial_generate_summary, texts))
-
-    except Exception as e:
-        print(f"Error during initial summarization: {e}")
-        # return comment_jsons
-    return comment_jsons
-
-
-def step_1(to_summarize, all_resp):
-    max_tokens = 200
-    chunks = split_comments(to_summarize, max_tokens)
-    all_jsons = UPDATED_COUNTER_COMMENTS_parallel(chunks[:5], all_resp)
-    return all_jsons
-
-
-def step_2(all_jsons):
-    data_dicts = []
-    for sample in all_jsons:
-        # Correcting the incorrect escape of single quotes and converting HTML entities
-        sample = sample.replace("\\'", "'").replace("&#39;", "'")
-        try:
-            # Try to convert to a dictionary using ast.literal_eval
-            data_dict = ast.literal_eval(sample)
-        except:
-            # If ast.literal_eval fails, try json.loads
-            try:
-                data_dict = json.loads(sample)
-            except:
-                continue
-        data_dicts.append(data_dict)
-    return data_dicts
-
-
-def flatten_concatenation(matrix):
-    flat_list = []
-    for row in matrix:
-        flat_list += row
-    return flat_list
-
-
-def step_3(data_dicts):
-    flattened_data = flatten_concatenation(data_dicts)
-    new_data = []
-    for data in flattened_data:
-        if isinstance(data, dict):
-            print("+1")
-            new_dict = {}
-            for key, value in data.items():
-                # Convert string keys to integers if possible
-                try:
-                    new_key = int(key)
-                except ValueError:
-                    new_key = key
-                new_dict[new_key] = value
-            new_data.append(new_dict)
-        else:
-            print(f"Skipped non-dict item: {data}")
-    return new_data
+@st.cache_data(show_spinner=False)
+def process_comments_in_batches(comments, summary, batch_size=50):
+    st.write(
+        f"Processing comments in batches... (batch size : {batch_size}, number of batches : {len(comments)//batch_size})"
+    )
+    batches = []
+    for i in range(0, len(comments), batch_size):
+        batches.append(comments[i : i + batch_size])
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(
+            executor.map(partial(match_topics_comments, all_resp=summary), batches)
+        )
+    # Convert all_data to a DataFrame
+    flattened_result = [
+        item for sublist in results if sublist is not None for item in sublist
+    ]
+    df = pd.DataFrame(flattened_result)
+    return df
