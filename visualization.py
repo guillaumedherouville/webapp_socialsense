@@ -102,9 +102,9 @@ def emotion_viz(overall_sentiment_df):
 
 
 def display_comments_by_topic(df):
-    df = df.fillna(0)
+    temp = df.fillna(0)
     # Sum the counts across rows to get total counts for each topic
-    df_counts = df.sum(axis=0).reset_index()
+    df_counts = temp.sum(axis=0).reset_index()
     df_counts.columns = ["Topic", "Count"]
 
     # Ensure all possible topics (1-10) are included by filling in missing topics with a count of 0
@@ -116,7 +116,7 @@ def display_comments_by_topic(df):
     df_counts["Topic"] = df_counts["Topic"].astype(int)
 
     # Plotting
-    fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(18, 10))
+    fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(12, 6))
 
     # Define your color palette
     muted_green = "#6dbf67"
@@ -128,22 +128,10 @@ def display_comments_by_topic(df):
     # Create the count plot
     ax = sns.barplot(data=df_counts, x="Topic", y="Count", palette=palette)
 
-    # Set plot background color
-    plt.gcf().set_facecolor(".1")  # Set the background of the figure
-    ax.set_facecolor(".1")  # Set the background of the axes
-
     # Set title and labels with a lighter color for visibility
-    plt.title("Number of Comments by Topic", color="white")
-    plt.xlabel("Topic", color="white")
-    plt.ylabel("Count of Comments", color="white")
-
-    # Change the color of the ticks and tick labels
-    plt.xticks(color="white")
-    plt.yticks(color="white")
-
-    # Change the color of the axes' spines
-    for spine in ax.spines.values():
-        spine.set_edgecolor("white")
+    plt.title("Number of Comments by Topic")  # , color="white")
+    plt.xlabel("Topic")  # , color="white")
+    plt.ylabel("Count of Comments")  # , color="white")
 
     # Adding the count above each bar
     for p in ax.patches:
@@ -153,7 +141,6 @@ def display_comments_by_topic(df):
             ha="center",
             va="center",
             fontsize=10,
-            color="white",
             xytext=(0, 5),
             textcoords="offset points",
         )
@@ -176,7 +163,6 @@ def display_comments_by_topic(df):
         7.8,
         ax.get_ylim()[1] * 0.92,
         f"POS : {positive_perc:.4g}%\nNEG : {negative_perc:.4g}%",
-        color="white",
         fontweight="bold",
     )
 

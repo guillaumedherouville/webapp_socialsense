@@ -49,7 +49,7 @@ def log_progress(message, start_time):
     st.sidebar.write(f"[{time_str}] {message}")
 
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def summarize_comments(df, movie_info_str):
     all_resp = TOTAL_SUMMARIZER(df, 3900, movie_info_str)
     resp_list = [item for item in all_resp.splitlines() if item]
@@ -66,10 +66,21 @@ def display_summary(resp_list):
     st.markdown(dislikes)
 
 
-def display_marketing(resp_list, movie_info_str):
-    marketing_actions = generate_summary_marketing(resp_list, movie_info_str)
-    resp_list_mark = marketing_actions.splitlines()
-    st.markdown("\n".join(resp_list_mark))
+def display_selected_topic(summary, comments_topics_df):
+    topic = st.selectbox(
+        "Select a topic for comments breakdown", summary, label_visibility="collapsed"
+    )
+    if topic:
+        i = int(summary.index(topic))
+        temp = comments_topics_df.set_index("0")
+        john = temp[temp.iloc[:, i] == 1]
+        john = john.reset_index()
+        if len(john) == 0:
+            st.write("No comment found matching this topic")
+        else:
+            with st.container(height=300, border=True):
+                for idx, row in john.iterrows():
+                    st.write(row[0])
 
 
 def main():
@@ -98,6 +109,11 @@ def main():
         st.session_state.table = None
     if "resp_list" not in st.session_state:
         st.session_state.resp_list = None
+    if "marketing_actions" not in st.session_state:
+        st.session_state.marketing_actions = None
+    if "start_time" not in st.session_state:
+        st.session_state.start_time = None
+
     st.markdown(
         """
         <style>
@@ -138,23 +154,25 @@ def main():
             if st.session_state.movie_id is None:
                 st.error("Please enter a valid IMDB ref")
 
+    # col1, col2, _ = st.columns([1, 1, 3])
     st.sidebar.markdown("**Progress**")
-    if col1.button("Submit"):
+    # col1.toggle("Match comments", False, key="topic_match")
+    if st.button("Submit"):
         with st.spinner(
             "Processing... (see progress in sidebar - average time 3-5mins)"
         ):
-            start_time = time.time()
-            log_progress("Extracting comments...", start_time)
+            st.session_state.start_time = time.time()
+            log_progress("Extracting comments...", st.session_state.start_time)
             st.session_state.comments = generate_comments(
                 st.session_state.video_id, st.secrets["YT_KEY"], max_comments=1_000
             )
-            log_progress("Cleaning comments...", start_time)
+            log_progress("Cleaning comments...", st.session_state.start_time)
             st.session_state.comments = df_character_cleaning(st.session_state.comments)
-            log_progress("Calculating sentiment scores...", start_time)
+            log_progress("Calculating sentiment scores...", st.session_state.start_time)
             st.session_state.all_scores = get_comments_sentiment(
                 st.session_state.comments
             )
-            log_progress("Creating comparison table...", start_time)
+            log_progress("Creating comparison table...", st.session_state.start_time)
             st.session_state.table = comparison_table(
                 st.session_state.all_scores, st.session_state.movie_id, movies
             )
@@ -163,8 +181,7 @@ def main():
     if st.session_state.get("first_analysis_complete", False):
         st.header("Movie Sentiment and Emotion Analysis 🎈")
         st.subheader("Sentiment Analysis")
-        col1, col2 = st.columns(2)
-        col1.text("")
+        col1, col2 = st.columns(2, vertical_alignment="center")
         col1.dataframe(
             st.session_state.table.set_index("Title")[
                 ["negative", "neutral", "positive"]
@@ -173,8 +190,7 @@ def main():
         with col2:
             sentiment_viz(st.session_state.table)
         st.subheader("Emotion Analysis")
-        col1, col2 = st.columns(2)
-        col1.text("")
+        col1, col2 = st.columns(2, vertical_alignment="center")
         col1.dataframe(
             st.session_state.table.set_index("Title")[
                 ["sadness", "joy", "love", "anger", "fear", "surprise"]
@@ -184,6 +200,7 @@ def main():
             emotion_viz(st.session_state.table)
 
         st.header("Advanced Topic Analysis 🔎")
+        log_progress("Generating summary...", st.session_state.start_time)
         _, st.session_state.entities_df = create_entities_df(st.session_state.movie_id)
         st.session_state.movie_info_str = create_movie_info(
             st.session_state.movie_id, st.session_state.entities_df
@@ -192,13 +209,26 @@ def main():
             st.session_state.comments, st.session_state.movie_info_str
         )
         display_summary(st.session_state.resp_list)
-        st.subheader("Marketing Actions Recommendations 🛠️")
-        display_marketing(st.session_state.resp_list, st.session_state.movie_info_str)
+        # if st.session_state.topic_match:
+        log_progress("Matching comments to topics...", st.session_state.start_time)
         comments_topics_df = process_comments_in_batches(
             st.session_state.comments, st.session_state.resp_list, batch_size=50
         )
-        st.subheader("Breakdown of Comments by Topic")
-        display_comments_by_topic(comments_topics_df)
+        log_progress("Done!", st.session_state.start_time)
+        # st.subheader("Breakdown of comments by topic")
+        st.markdown("#### Breakdown of comments by topic:")
+        # col1, col2 = st.columns(2, vertical_alignment="center")
+        _, col2, _ = st.columns([1, 3, 1])
+        with col2:
+            display_comments_by_topic(comments_topics_df)
+        # with col1:
+        #     display_selected_topic(st.session_state.resp_list, comments_topics_df)
+        log_progress("Suggesting marketing actions...", st.session_state.start_time)
+        st.session_state.marketing_actions = generate_summary_marketing(
+            st.session_state.resp_list, st.session_state.movie_info_str
+        )
+        st.subheader("Marketing Actions Recommendations 🛠️")
+        st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
 
 
 if __name__ == "__main__":

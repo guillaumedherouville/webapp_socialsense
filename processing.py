@@ -607,7 +607,7 @@ Please output in the same format for this comment {text} and the provided themes
         return None
 
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def generate_summary_marketing(resp_list, movie_info_str):
     topic_analysis_prompt = f"""
     Here is information on the given film of interest: {movie_info_str}
@@ -637,9 +637,6 @@ def generate_summary_marketing(resp_list, movie_info_str):
 
 @st.cache_data(show_spinner=False)
 def process_comments_in_batches(comments, summary, batch_size=50):
-    st.write(
-        f"Processing comments in batches... (batch size : {batch_size}, number of batches : {len(comments)//batch_size})"
-    )
     batches = []
     for i in range(0, len(comments), batch_size):
         batches.append(comments[i : i + batch_size])
