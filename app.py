@@ -166,6 +166,7 @@ def main():
             st.session_state.comments = generate_comments(
                 st.session_state.video_id, st.secrets["YT_KEY"], max_comments=1_000
             )
+            st.write(f"Extracted {len(st.session_state.comments)} comments")
             log_progress("Cleaning comments...", st.session_state.start_time)
             st.session_state.comments = df_character_cleaning(st.session_state.comments)
             log_progress("Calculating sentiment scores...", st.session_state.start_time)
@@ -212,7 +213,9 @@ def main():
         # if st.session_state.topic_match:
         log_progress("Matching comments to topics...", st.session_state.start_time)
         comments_topics_df = process_comments_in_batches(
-            st.session_state.comments, st.session_state.resp_list, batch_size=50
+            st.session_state.comments,
+            st.session_state.resp_list,
+            batch_size=min(len(st.session_state.comments) // 10, 50),
         )
         log_progress("Done!", st.session_state.start_time)
         # st.subheader("Breakdown of comments by topic")

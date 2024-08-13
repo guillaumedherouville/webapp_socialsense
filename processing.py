@@ -523,7 +523,8 @@ def match_topics_comments(text, all_resp):
 
   The output would be:
     {
-      {
+    [
+    {
   0 : "I hate Facebook and I love this movie",
   1 : 1,
   2 : 0,
@@ -580,6 +581,7 @@ def match_topics_comments(text, all_resp):
   4 : 0,
   5 : 0
     }
+    ]
     }, where 0 is attributed to the comment, 1 is attributed to the first theme, 2 to the second theme, 3 to the third, etc. Only classify the comment if it directly relates to the respective theme; some comments may not belong to any topic, in which case you will generate 0 for each value of the key-value pairs.
 
     For example, the comments 'Lex Luthor created Facebook' and 'He's smart, but I don't trust him' are both related to the trailer, but are not specific enough to fit in any category.
@@ -587,14 +589,14 @@ def match_topics_comments(text, all_resp):
     Additionally, although the comment 'A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up.' mentions the praise for the acting, the comment itself is not praiseworth, so it is not attributed to the
     topic 'Highly appreciated performances from the cast, with special mentions of actors such as Andrew Garfield and Jesse Eisenberg'.
 .
-Please output in the same format for this comment {text} and the provided themes: {all_resp}. DO NOT output any other text other than the information specified and DO NOT use space brackets '()' or apostrophes like '. Please generate the full comment. It is extremely important that you fully follow these instructions:
+Please output in the same format for these comments {text} and the provided themes: {all_resp}. DO NOT output any other text other than the information specified and DO NOT use space brackets '()' or apostrophes like '. Please generate the full comment. It is extremely important that you fully follow these instructions:
 """
     try:
         chat = ChatGPT(
-            system_message="You are an expert comment analyzer who outputs in JSON format. You are not allowed to use any apostrophes (') in your generation. Simply use double quotes("
-            ") instead; only use single-quotes ('') inside double-quotes if necessary, never use double-quotes within double-quotes. \
-                                    You will be prompted with many comments; please perform the analsys for every single comment, do not skip any even though it may be computationally expensive. \
-                                    Please generate the entire comment in your analysis, and only classify the comment if it directly relates to the respective theme, this is extremely important!"
+            system_message=f"""You are an expert comment analyzer who outputs in JSON format. You are not allowed to use any apostrophes (') in your generation. Simply use double quotes("") 
+                                    instead; only use single-quotes ('') inside double-quotes if necessary, never use double-quotes within double-quotes. 
+                                    You will be prompted with many comments; please perform the analsys for every single comment, do not skip any even though it may be computationally expensive. 
+                                    Please generate the entire comment in your analysis, and only classify the comment if it directly relates to the respective theme, this is extremely important!"""
         )
         chat.add_user_message(topic_analysis_prompt)
         summarized_chunk = chat.get_response()
@@ -620,8 +622,7 @@ def generate_summary_marketing(resp_list, movie_info_str):
 
     Please ensure each suggestion is unique; do not repeat similar suggestions multiple times.
 
-    Start directly with the list, do not include other text, and be concise (yet detailed) in your suggestions.
-  """
+    Start directly with the list, do not include other text, and be concise (yet detailed) in your suggestions."""
     try:
         chat = ChatGPT(
             system_message="You are an expert marketing analyzer who outputs marketing advice given topics that users are speaking about."
@@ -644,7 +645,6 @@ def process_comments_in_batches(comments, summary, batch_size=50):
         results = list(
             executor.map(partial(match_topics_comments, all_resp=summary), batches)
         )
-    # Convert all_data to a DataFrame
     flattened_result = [
         item for sublist in results if sublist is not None for item in sublist
     ]
