@@ -111,7 +111,7 @@ def get_movie_info(movie_id):
         },
         {
             "role": "user",
-            "content": f"What 1-2 sentences of context should I know about the (1) plot, (2) cast, and (3) relevant cultural info related to the upcoming movie, '{movie}'?",
+            "content": f"What 1-2 sentences of context should I know about the (1) plot, (2) cast, (3) relevant cultural info related to the upcoming movie and (4) general categories of the movie (do not show but i.e. inde or not, genre, target audience...)  '{movie}'?",
         },
     ]
     client = openai.OpenAI(

@@ -211,8 +211,8 @@ def main():
             st.session_state.comments, st.session_state.movie_info_str
         )
         display_summary(st.session_state.resp_list)
-        st.markdown("#### IMBD info:")
-        st.write(st.session_state.movie_info_str)
+        # st.markdown("#### IMBD info:")
+        # st.write(st.session_state.movie_info_str)
 
         if st.session_state.topic_match == True:
             log_progress("Matching comments to topics...", st.session_state.start_time)
