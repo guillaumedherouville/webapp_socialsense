@@ -336,7 +336,7 @@ def chunkify_by_tokens(text, max_tokens):
 class ChatGPT:
     def __init__(self, model="gpt-4o-mini", system_message=None):
         self.model = model
-        self.client = openai.OpenAI()
+        self.client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
         if system_message:
             self.default_system_message = {"role": "system", "content": system_message}
         else:
