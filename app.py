@@ -166,7 +166,6 @@ def main():
             st.session_state.comments = generate_comments(
                 st.session_state.video_id, st.secrets["YT_KEY"], max_comments=1_000
             )
-            st.write(f"Extracted {len(st.session_state.comments)} comments")
             log_progress("Cleaning comments...", st.session_state.start_time)
             st.session_state.comments = df_character_cleaning(st.session_state.comments)
             log_progress("Calculating sentiment scores...", st.session_state.start_time)
