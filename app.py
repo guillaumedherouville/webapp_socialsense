@@ -16,6 +16,7 @@ from processing import (
 from config import movies
 import re
 from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
+from agentic import marketing_process
 
 
 def extract_youtube_id(input_string):
@@ -103,8 +104,6 @@ def main():
         st.session_state.temp = None
     if "movie_info_str" not in st.session_state:
         st.session_state.movie_info_str = None
-    if "first_analysis_complete" not in st.session_state:
-        st.session_state.first_analysis_complete = False
     if "table" not in st.session_state:
         st.session_state.table = None
     if "resp_list" not in st.session_state:
@@ -154,20 +153,25 @@ def main():
             if st.session_state.movie_id is None:
                 st.error("Please enter a valid IMDB ref")
 
-    # col1, col2, _ = st.columns([1, 1, 3])
+    col1, col2, col3, _ = st.columns([1, 1, 1, 3])
     st.sidebar.markdown("**Progress**")
-    # col1.toggle("Match comments", False, key="topic_match")
-    if st.button("Submit"):
+    col1.toggle("Sentiment graphs", False, key="sentiment")
+    col2.toggle("Match comments", False, key="topic_match")
+    col3.toggle("Marketing_standard", False, key="marketing")
+    if col1.button("Submit"):
         with st.spinner(
             "Processing... (see progress in sidebar - average time 3-5mins)"
         ):
             st.session_state.start_time = time.time()
-            log_progress("Extracting comments...", st.session_state.start_time)
-            st.session_state.comments = generate_comments(
-                st.session_state.video_id, st.secrets["YT_KEY"], max_comments=1_000
-            )
-            log_progress("Cleaning comments...", st.session_state.start_time)
-            st.session_state.comments = df_character_cleaning(st.session_state.comments)
+        log_progress("Extracting comments...", st.session_state.start_time)
+        st.session_state.comments = generate_comments(
+            st.session_state.video_id, st.secrets["YT_KEY"], max_comments=1_000
+        )
+        log_progress("Cleaning comments...", st.session_state.start_time)
+        st.session_state.comments = df_character_cleaning(st.session_state.comments)
+
+    if st.session_state.comments is not None:
+        if st.session_state.sentiment == True:
             log_progress("Calculating sentiment scores...", st.session_state.start_time)
             st.session_state.all_scores = get_comments_sentiment(
                 st.session_state.comments
@@ -176,28 +180,26 @@ def main():
             st.session_state.table = comparison_table(
                 st.session_state.all_scores, st.session_state.movie_id, movies
             )
-            st.session_state.first_analysis_complete = True
 
-    if st.session_state.get("first_analysis_complete", False):
-        st.header("Movie Sentiment and Emotion Analysis 🎈")
-        st.subheader("Sentiment Analysis")
-        col1, col2 = st.columns(2, vertical_alignment="center")
-        col1.dataframe(
-            st.session_state.table.set_index("Title")[
-                ["negative", "neutral", "positive"]
-            ]
-        )
-        with col2:
-            sentiment_viz(st.session_state.table)
-        st.subheader("Emotion Analysis")
-        col1, col2 = st.columns(2, vertical_alignment="center")
-        col1.dataframe(
-            st.session_state.table.set_index("Title")[
-                ["sadness", "joy", "love", "anger", "fear", "surprise"]
-            ]
-        )
-        with col2:
-            emotion_viz(st.session_state.table)
+            st.header("Movie Sentiment and Emotion Analysis 🎈")
+            st.subheader("Sentiment Analysis")
+            col1, col2 = st.columns(2, vertical_alignment="center")
+            col1.dataframe(
+                st.session_state.table.set_index("Title")[
+                    ["negative", "neutral", "positive"]
+                ]
+            )
+            with col2:
+                sentiment_viz(st.session_state.table)
+            st.subheader("Emotion Analysis")
+            col1, col2 = st.columns(2, vertical_alignment="center")
+            col1.dataframe(
+                st.session_state.table.set_index("Title")[
+                    ["sadness", "joy", "love", "anger", "fear", "surprise"]
+                ]
+            )
+            with col2:
+                emotion_viz(st.session_state.table)
 
         st.header("Advanced Topic Analysis 🔎")
         log_progress("Generating summary...", st.session_state.start_time)
@@ -209,28 +211,39 @@ def main():
             st.session_state.comments, st.session_state.movie_info_str
         )
         display_summary(st.session_state.resp_list)
-        # if st.session_state.topic_match:
-        log_progress("Matching comments to topics...", st.session_state.start_time)
-        comments_topics_df = process_comments_in_batches(
-            st.session_state.comments,
-            st.session_state.resp_list,
-            batch_size=min(len(st.session_state.comments) // 10, 50),
-        )
-        log_progress("Done!", st.session_state.start_time)
-        # st.subheader("Breakdown of comments by topic")
-        st.markdown("#### Breakdown of comments by topic:")
-        # col1, col2 = st.columns(2, vertical_alignment="center")
-        _, col2, _ = st.columns([1, 3, 1])
-        with col2:
-            display_comments_by_topic(comments_topics_df)
-        # with col1:
-        #     display_selected_topic(st.session_state.resp_list, comments_topics_df)
+        st.markdown("#### IMBD info:")
+        st.write(st.session_state.movie_info_str)
+
+        if st.session_state.topic_match == True:
+            log_progress("Matching comments to topics...", st.session_state.start_time)
+            comments_topics_df = process_comments_in_batches(
+                st.session_state.comments,
+                st.session_state.resp_list,
+                batch_size=min(len(st.session_state.comments) // 10, 50),
+            )
+            log_progress("Done!", st.session_state.start_time)
+            # st.subheader("Breakdown of comments by topic")
+            st.markdown("#### Breakdown of comments by topic:")
+            # col1, col2 = st.columns(2, vertical_alignment="center")
+            _, col2, _ = st.columns([1, 3, 1])
+            with col2:
+                display_comments_by_topic(comments_topics_df)
+            # with col1:
+            #     display_selected_topic(st.session_state.resp_list, comments_topics_df)
+
         log_progress("Suggesting marketing actions...", st.session_state.start_time)
-        st.session_state.marketing_actions = generate_summary_marketing(
-            st.session_state.resp_list, st.session_state.movie_info_str
-        )
-        st.subheader("Marketing Actions Recommendations 🛠️")
-        st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
+        if st.session_state.marketing == True:
+            st.session_state.marketing_actions = generate_summary_marketing(
+                st.session_state.resp_list, st.session_state.movie_info_str
+            )
+            st.subheader("Marketing Actions Recommendations 🛠️")
+            st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
+        else:
+            marketing_process(
+                st.session_state.resp_list,
+                st.session_state.movie_info_str,
+                st.session_state.movie_id,
+            )
 
 
 if __name__ == "__main__":

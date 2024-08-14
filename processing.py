@@ -109,6 +109,7 @@ def get_classifiers_output(comment):
     return a, b
 
 
+@st.cache_data(show_spinner=False)
 def get_comments_sentiment(comments):
     with ThreadPoolExecutor() as executor:
         results = list(executor.map(get_classifiers_output, comments))
@@ -121,6 +122,7 @@ def get_comments_sentiment(comments):
     return all_scores
 
 
+@st.cache_data(show_spinner=False)
 def comparison_table(all_scores, movie_id, movies):
     overall_sentiment = np.mean(np.array(all_scores).reshape(-1, 9), axis=0).tolist()
     overall_sentiment_df = pd.DataFrame(overall_sentiment)

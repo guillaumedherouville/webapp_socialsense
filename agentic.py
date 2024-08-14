@@ -1,5 +1,6 @@
 import openai
 import streamlit as st
+from imdb import IMDb
 
 
 class ChatGPT:
@@ -33,54 +34,62 @@ def generate_marketing_suggestions(topics, movie_info):
     Start directly with the list, do not include other text, and be concise (yet detailed) in your suggestions.
     """
     analyst = ChatGPT(
-        system_message="You are a senior marketing analyst at a big movie production company. You are tasked with creating a set of marketing actions for a new movie, based on the topics that users are discussing"
+        system_message="You are a senior marketing analyst at a big movie production company. You are tasked with creating a set of marketing actions for a new movie, based on the topics that users are discussing. \
+            You are in competition with another analyst for this task, one of you will be fired and the other promoted. For each reply, take a deep breath and think step by step."
     )
     analyst.add_user_message(analyst_prompt)
     summarized_chunk = analyst.get_response()
     return summarized_chunk, analyst
 
 
-def evaluate_marketing_suggestions(topics, movie_info, marketing_suggestions):
-    evaluation_prompt = f"""
-    Here is information on the movie of interest: {movie_info}
-    Here are the general topics people are discussing related to this film: \n {topics}
-    Given the topics that users are speaking about your movie trailer, your team has come up with the following marketing suggestions : {marketing_suggestions}
-    Rate the suggestions from 1-5, with 1 being the least helpful and 5 being the most helpful. Output the ratings in list-format.
-    Output should only be 5 numbers, each separated by a \\n and nothing else.
-    """
-    evaluator = ChatGPT(
-        system_message="You are a senior marketing executive at a big movie production company. You are tasked with evaluating a set of marketing actions for a new movie based on the topics that users are discussing."
-    )
-    evaluator.add_user_message(evaluation_prompt)
-    evaluations = evaluator.get_response()
-    return evaluations
+critic = ChatGPT(
+    system_message="You are a senior marketing associate at a big movie production company. You are tasked with guiding two junior analysts to provide optimal marketing actions for a new movie, based on the topics that users are discussing. \
+    For each reply, take a deep breath and think step by step. I will tip you $100."
+)
 
 
 def review_marketing_suggestions(
-    topics, movie_info, marketing_suggestions, critic, first_pass
+    topics, movie_info, marketing_suggestions, critic, first_pass=False, final=False
 ):
-    if first_pass:
+    suffix = f"""
+    Please review each suggestion and provide feedback on whether it is an appropriate marketing action considering feasibility, cost-effectiveness, general marketing science as well as public relations and social media knowledge. This feedback will be vital to improve our marketing strategy.
+    Be extremely severe in your judgment, your career depends on it. If a suggestion is not relevant enough, you will be held responsible for not catching it and fired.
+    At the beginning of your review, make sure to provide a clear ranking of the 10 suggestions, from best to worst.
+    Conclude with a general comment on the overall quality of the suggestions, and what specific areas need improvement.
+    Do not include meta information in your reply.
+    """
+
+    if first_pass == True:
         critic_prompt = f"""
         Here is information on the given film of interest: {movie_info}
         Here are the general topics people are discussing related to this film: \n {topics}
-        Given the topics that users are speaking about your movie trailer, your analyst has come up with the following marketing suggestions : {marketing_suggestions}
-        Please review the suggestions and provide feedback on how they can be improved or expanded upon. Output your feedback in list-format, with explanation for each suggestion.
-    """
+        Given the topics that users are speaking about your movie trailer, the two analysts have come up with the following marketing suggestions, in no particular order: {marketing_suggestions}
+        {suffix}
+        """
     else:
         critic_prompt = f"""
-        Given your feedback, your analyst has revised the marketing suggestions for the film. Here are the updated suggestions: {marketing_suggestions}
-        Please review these new suggestions and provide feedback on how they can be improved or expanded upon. Output your feedback in list-format, with explanation for each suggestion.
-    """
+        Given your feedback, the two analysts have revised the marketing suggestions for the film. Here are the updated suggestions: {marketing_suggestions}
+        {suffix}"""
+    if final == True:
+        critic_prompt = f"""
+        Given your feedback, the two analysts have revised the marketing suggestions for the film. Here are the final updated suggestions: {marketing_suggestions}
+        Please review each suggestion assign it a score based of whether it is an appropriate marketing action considering feasibility, cost-effectiveness, general marketing science as well as public relations and social media knowledge. This feedback will be vital to improve our marketing strategy.
+        Be extremely severe in your judgment, your career depends on it. 
+        Return the top 5 best unique suggestions, in list format, with the exact same format as it was provided by the analyst.
+        Start directly with the list and do not include other text."""
+
     critic.add_user_message(critic_prompt)
     critic_message = critic.get_response()
     return critic_message, critic
 
 
-def improve_marketing_suggestions(analyst, critic_message):
+def improve_marketing_suggestions(analyst, critic_message, competing_suggestions):
     analyst_prompt = f"""
-        Given your suggestions, an advanced reviewer from your team has provided the following feedback : {critic_message}
-        Please review the feedback and make any necessary changes to the marketing suggestions. Output the revised suggestions in list-format, with details for each suggestion.
-        Start directly with the list and do not include other text.
+        The other analyst has provided these suggestions: {competing_suggestions}
+        Given all suggestions, an advanced reviewer from your team has provided the following ranking and explanation : {critic_message}
+        Please review the feedback and provide a new set of 5 suggestions. You can keep some of the old ones if they are good enough, but you must provide at least 2 new suggestions which were in neither of the previous lists.
+        Your suggestions must improve based on the feedback provided by the advanced reviewer, in a relevant manner.
+        Output the revised suggestions in list-format, with details for each suggestion. Start directly with the list and do not include other text.
     """
     analyst.add_user_message(analyst_prompt)
     evaluations = analyst.get_response()
@@ -92,43 +101,85 @@ def display_suggestions(marketing_actions):
     st.markdown("\n".join(resp_list_mark))
 
 
-def display_evaluations(evaluations):
-    st.write("Evaluations:")
-    evaluations = " - ".join(
-        [f"Suggestion #{i+1}: {evaluations[i]}" for i in range(len(evaluations))]
+def get_movie_info(movie_id):
+    ia = IMDb()
+    movie = ia.get_movie(movie_id)
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a marketing research assistant that provides accurate info about upcoming movies.",
+        },
+        {
+            "role": "user",
+            "content": f"What 1-2 sentences of context should I know about the (1) plot, (2) cast, and (3) relevant cultural info related to the upcoming movie, '{movie}'?",
+        },
+    ]
+    client = openai.OpenAI(
+        api_key=st.secrets["PERPLEXITY"], base_url="https://api.perplexity.ai"
+    )  # chat completion without streaming
+    response = client.chat.completions.create(
+        model="llama-3.1-sonar-large-128k-online",
+        messages=messages,
     )
-    st.write(evaluations)
+    return response.choices[0].message.content
 
 
-def marketing_process(topics, movie_info):
-    st.subheader("Marketing suggestions #1")
-    marketing_suggestions, analyst = generate_marketing_suggestions(topics, movie_info)
-    display_suggestions(marketing_suggestions)
-
-    evaluations = evaluate_marketing_suggestions(
-        topics, movie_info, marketing_suggestions
+@st.cache_data(show_spinner=False)
+def marketing_process(topics, movie_info, movie_id, critic=critic):
+    st.subheader("Marketing Actions Recommendations 🛠️")
+    st.markdown("#### Perplexity info:")
+    info = get_movie_info(movie_id)
+    st.write(info)
+    st.markdown("#### Marketing suggestions #1")
+    marketing_suggestions1, analyst1 = generate_marketing_suggestions(
+        topics, movie_info
     )
-    display_evaluations(evaluations)
-
-    critic = ChatGPT(
-        system_message="You are a senior marketing associate at a big movie production company. You are tasked with guiding a younger a younger analyst to provide optimal marketing actions for a new movie, based on the topics that users are discussing."
+    marketing_suggestions2, analyst2 = generate_marketing_suggestions(
+        topics, movie_info
     )
-    critic_message, critic = review_marketing_suggestions(
-        topics, movie_info, marketing_suggestions, critic, first_pass=True
+    col1, col2 = st.columns(2, vertical_alignment="center")
+    with col1:
+        display_suggestions(marketing_suggestions1)
+    with col2:
+        display_suggestions(marketing_suggestions2)
+    all_suggestions1 = marketing_suggestions1 + marketing_suggestions2
+    critic_message1, critic = review_marketing_suggestions(
+        topics, movie_info, all_suggestions1, critic, first_pass=True
     )
+    st.write(critic_message1)
 
-    for i in range(2, 6):
-        st.subheader(f"Marketing suggestions #{i}")
-        revised_suggestions, analyst = improve_marketing_suggestions(
-            analyst, critic_message
-        )
-        display_suggestions(revised_suggestions)
+    st.markdown("#### Marketing suggestions #2")
+    revised_suggestions1, analyst1 = improve_marketing_suggestions(
+        analyst1, critic_message1, marketing_suggestions2
+    )
+    revised_suggestions2, analyst2 = improve_marketing_suggestions(
+        analyst1, critic_message1, marketing_suggestions1
+    )
+    col1, col2 = st.columns(2, vertical_alignment="center")
+    with col1:
+        display_suggestions(revised_suggestions1)
+    with col2:
+        display_suggestions(revised_suggestions2)
+    all_suggestions2 = revised_suggestions1 + revised_suggestions2
+    critic_message2, critic = review_marketing_suggestions(
+        None, None, all_suggestions2, critic
+    )
+    st.write(critic_message2)
 
-        evaluations = evaluate_marketing_suggestions(
-            topics, movie_info, revised_suggestions
-        )
-        display_evaluations(evaluations)
-
-        critic_message, critic = review_marketing_suggestions(
-            marketing_suggestions, critic, first_pass=False
-        )
+    st.markdown("#### Marketing suggestions #3")
+    final_suggestions1, analyst1 = improve_marketing_suggestions(
+        analyst1, critic_message2, marketing_suggestions2
+    )
+    final_suggestions2, analyst2 = improve_marketing_suggestions(
+        analyst2, critic_message2, marketing_suggestions1
+    )
+    col1, col2 = st.columns(2, vertical_alignment="center")
+    with col1:
+        display_suggestions(final_suggestions1)
+    with col2:
+        display_suggestions(final_suggestions2)
+    final_suggestions = final_suggestions1 + final_suggestions2
+    critic_message2, critic = review_marketing_suggestions(
+        None, None, final_suggestions, critic, None, final=True
+    )
+    st.write(critic_message2)
