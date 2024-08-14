@@ -20,5 +20,5 @@ excel file (marketing tactics...) is an old excel intended to help with promptin
 #### Branches
 
 main is for the public streamlit
-\n test_dev is simply to avoid modifying the public streamlit until everything is good
+test_dev is simply to avoid modifying the public streamlit until everything is good
 agents (to be pushed) is for the agents feature
