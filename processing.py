@@ -99,7 +99,7 @@ def remove_emojis_and_apostrophes(text):
 
 def df_character_cleaning(comments_t):
     comments_t = [remove_emojis_and_apostrophes(comment) for comment in comments_t]
-    return comments_t
+    return comments_t[:1000]
 
 
 # Define a function to get classifier results for a single comment

@@ -153,12 +153,28 @@ def main():
             if st.session_state.movie_id is None:
                 st.error("Please enter a valid IMDB ref")
 
-    col1, col2, col3, _ = st.columns([1, 1, 1, 3])
+    col1, col2, col3, col4, col41, col5, col51 = st.columns(
+        [2, 2, 2.1, 1.3, 2, 1.5, 2], vertical_alignment="center"
+    )
     st.sidebar.markdown("**Progress**")
     col1.toggle("Sentiment graphs", False, key="sentiment")
     col2.toggle("Match comments", False, key="topic_match")
     col3.toggle("Marketing_standard", False, key="marketing")
-    if col1.button("Submit"):
+    col4.write("Objective :")
+    col41.selectbox(
+        "Marketing goal",
+        ["Awareness", "Conversion to socials", "Conversion to viewership"],
+        key="goal",
+        label_visibility="collapsed",
+    )
+    col5.write("Time horizon :")
+    col51.selectbox(
+        "Time horizon",
+        ["9 months and more", "6 months", "3 months and less"],
+        key="time",
+        label_visibility="collapsed",
+    )
+    if st.button("Submit"):
         with st.spinner(
             "Processing... (see progress in sidebar - average time 3-5mins)"
         ):
@@ -224,12 +240,12 @@ def main():
             log_progress("Done!", st.session_state.start_time)
             # st.subheader("Breakdown of comments by topic")
             st.markdown("#### Breakdown of comments by topic:")
-            # col1, col2 = st.columns(2, vertical_alignment="center")
-            _, col2, _ = st.columns([1, 3, 1])
+            col1, col2 = st.columns(2, vertical_alignment="center")
+            # _, col2, _ = st.columns([1, 3, 1])
             with col2:
                 display_comments_by_topic(comments_topics_df)
-            # with col1:
-            #     display_selected_topic(st.session_state.resp_list, comments_topics_df)
+            with col1:
+                display_selected_topic(st.session_state.resp_list, comments_topics_df)
 
         log_progress("Suggesting marketing actions...", st.session_state.start_time)
         if st.session_state.marketing == True:
@@ -243,6 +259,8 @@ def main():
                 st.session_state.resp_list,
                 st.session_state.movie_info_str,
                 st.session_state.movie_id,
+                st.session_state.goal,
+                st.session_state.time,
             )
 
 
