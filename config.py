@@ -1,3 +1,127 @@
+# Marketing analyst profiles
+profiles = [
+    "Name: Alejandro Reyes\
+Languages: English, Spanish, Portuguese\
+Nationality: Mexican\
+Gender: Male\
+Age: 38\
+Education: MBA in Marketing\
+Personality: creative, outgoing, strategic\
+Hobbies: film festivals, social media, travel\
+Years of working: 15\
+Profession: Digital Marketing Specialist\
+Specialization: Action and Adventure Films\
+Target Audience: Young Adults (18-35)",
+    "Name: Yuki Tanaka\
+Languages: Japanese, English, Korean\
+Nationality: Japanese\
+Gender: Female\
+Age: 42\
+Education: M.S. in Media Studies\
+Personality: analytical, detail-oriented, innovative\
+Hobbies: anime conventions, blogging, photography\
+Years of working: 18\
+Profession: Content Marketing Manager\
+Specialization: Animated Films and Anime\
+Target Audience: Teens and Young Adults",
+    "Name: Olivia Bennett\
+Languages: English, French\
+Nationality: British\
+Gender: Female\
+Age: 29\
+Education: B.A. in Film Studies\
+Personality: enthusiastic, adaptable, collaborative\
+Hobbies: podcasting, film critique, yoga\
+Years of working: 7\
+Profession: Social Media Strategist\
+Specialization: Indie and Art House Films\
+Target Audience: Film Enthusiasts and Critics",
+    "Name: Marcus Johnson\
+Languages: English\
+Nationality: American\
+Gender: Male\
+Age: 51\
+Education: Ph.D. in Communication\
+Personality: charismatic, decisive, visionary\
+Hobbies: public speaking, mentoring, golf\
+Years of working: 25\
+Profession: Marketing Director\
+Specialization: Blockbusters and Franchise Films\
+Target Audience: General Audiences",
+    "Name: Priya Patel\
+Languages: Hindi, English, Gujarati\
+Nationality: Indian\
+Gender: Female\
+Age: 36\
+Education: M.A. in Advertising\
+Personality: creative, empathetic, organized\
+Hobbies: Bollywood dance, cooking, vlogging\
+Years of working: 12\
+Profession: Brand Manager\
+Specialization: Bollywood and International Films\
+Target Audience: South Asian Diaspora",
+    "Name: Lars Svensson\
+Languages: Swedish, English, Danish\
+Nationality: Swedish\
+Gender: Male\
+Age: 45\
+Education: B.S. in Marketing, Film Production Diploma\
+Personality: methodical, calm, innovative\
+Hobbies: screenwriting, skiing, film restoration\
+Years of working: 20\
+Profession: Market Research Analyst\
+Specialization: Scandinavian and European Cinema\
+Target Audience: Art House and International Film Lovers",
+    "Name: Zoe Chen\
+Languages: Mandarin, English, Cantonese\
+Nationality: Singaporean\
+Gender: Non-binary\
+Age: 33\
+Education: M.A. in Digital Marketing\
+Personality: tech-savvy, forward-thinking, adaptable\
+Hobbies: VR gaming, tech conferences, rock climbing\
+Years of working: 10\
+Profession: Digital Innovation Specialist\
+Specialization: Sci-Fi and Technology-themed Films\
+Target Audience: Tech Enthusiasts and Millennials",
+    "Name: Isabella Rossi\
+Languages: Italian, English, Spanish\
+Nationality: Italian\
+Gender: Female\
+Age: 40\
+Education: B.A. in Communications, Culinary Arts Diploma\
+Personality: passionate, detail-oriented, persuasive\
+Hobbies: wine tasting, film-themed dinner parties, travel blogging\
+Years of working: 16\
+Profession: Experiential Marketing Expert\
+Specialization: Romance and Food-centric Films\
+Target Audience: Foodies and Romance Enthusiasts",
+    "Name: Ahmed Al-Mansour\
+Languages: Arabic, English, French\
+Nationality: Egyptian\
+Gender: Male\
+Age: 37\
+Education: M.S. in International Marketing\
+Personality: diplomatic, culturally sensitive, strategic\
+Hobbies: calligraphy, historical documentaries, chess\
+Years of working: 13\
+Profession: Cross-Cultural Marketing Specialist\
+Specialization: Historical Dramas and Documentaries\
+Target Audience: History Buffs and Educational Institutions",
+    "Name: Samantha Lee\
+Languages: Korean, English\
+Nationality: American (Korean descent)\
+Gender: Female\
+Age: 31\
+Education: B.F.A. in Graphic Design, Digital Marketing Certificate\
+Personality: creative, trendsetting, analytical\
+Hobbies: K-pop fan events, digital art, surfing\
+Years of working: 8\
+Profession: Influencer Marketing Coordinator\
+Specialization: Teen Dramas and Music-themed Films\
+Target Audience: Gen Z and K-culture Fans",
+]
+
 # Set up comparison DataFrame
 barbie = {
     "negative": "24.5%",

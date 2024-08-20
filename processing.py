@@ -14,6 +14,7 @@ import spacy
 import httplib2
 from googleapiclient.discovery import build_from_document
 from concurrent.futures import ThreadPoolExecutor
+from langdetect import detect
 import time
 import openai
 import html
@@ -21,6 +22,7 @@ import json
 import ast
 import concurrent.futures
 import streamlit as st
+
 
 nltk.download("stopwords")
 nltk.download("vader_lexicon")
@@ -80,6 +82,14 @@ def generate_comments(video_id, key, max_comments=1000):
     return get_video_comments(youtube_service, max_comments=max_comments, **kwargs)
 
 
+def detect_lang(text):
+    try:
+        lang = detect(text)
+    except:
+        lang = "unknown"
+    return lang
+
+
 def remove_emojis_and_apostrophes(text):
     text = html.unescape(text)
     text = emoji.demojize(text)
@@ -99,7 +109,10 @@ def remove_emojis_and_apostrophes(text):
 
 def df_character_cleaning(comments_t):
     comments_t = [remove_emojis_and_apostrophes(comment) for comment in comments_t]
-    return comments_t[:1000]
+    temp = pd.DataFrame(comments_t, columns=["comment"])
+    temp["language"] = temp["comment"].apply(lambda x: detect_lang(x) if x else "")
+    temp = temp[temp["language"] == "en"]
+    return temp["comment"].tolist()[:1000]
 
 
 # Define a function to get classifier results for a single comment

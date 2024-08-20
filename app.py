@@ -84,10 +84,19 @@ def display_selected_topic(summary, comments_topics_df):
                     st.write(row[0])
 
 
+def filter_topics(comments_topics_df):
+    temp = comments_topics_df.set_index("0").dropna()
+    temp = temp.loc[:, temp.sum(axis=0) > len(temp.loc[temp.sum(axis=1) == 1]) * 0.05]
+    index_list = temp.columns.tolist()
+    index_list = [int(i) for i in index_list]
+    original_positions = [st.session_state.resp_list[i - 1] for i in index_list]
+    return original_positions
+
+
 def main():
     # Initialize session state variables
-    if "video_id" not in st.session_state:
-        st.session_state.video_id = None
+    if "trailers" not in st.session_state:
+        st.session_state.trailers = []
     if "movie_id" not in st.session_state:
         st.session_state.movie_id = None
     if "comments" not in st.session_state:
@@ -140,11 +149,21 @@ def main():
     col1, col2 = st.columns(2)
 
     with col1:
-        youtube_ref = st.text_input("Youtube video id or link")
-        if youtube_ref:
-            st.session_state.video_id = extract_youtube_id(youtube_ref)
-            if st.session_state.video_id is None:
-                st.error("Please enter a valid YouTube ref")
+        number = st.text_input("Number of trailers?", "1")
+        if number:
+            if number.isdigit():
+                number = int(number)
+            else:
+                st.error("Please enter a valid number")
+            for i in range(number):
+                youtube_ref = st.text_input(f"Youtube video id or link {i+1}")
+                if youtube_ref:
+                    video_id = extract_youtube_id(youtube_ref)
+                    if video_id is None:
+                        st.error("Please enter a valid YouTube ref")
+                    else:
+                        if video_id not in st.session_state.trailers:
+                            st.session_state.trailers.append(video_id)
 
     with col2:
         imdb_ref = st.text_input("IMDB movie id or link")
@@ -180,11 +199,19 @@ def main():
         ):
             st.session_state.start_time = time.time()
         log_progress("Extracting comments...", st.session_state.start_time)
-        st.session_state.comments = generate_comments(
-            st.session_state.video_id, st.secrets["YT_KEY"], max_comments=1_000
-        )
+        all_comments = []
+        for video_id in st.session_state.trailers:
+            comments = generate_comments(
+                video_id,
+                st.secrets["YT_KEY"],
+                max_comments=2_000,  # to cover for non-english
+            )
+            all_comments.extend(comments)
+        st.session_state.trailers = []
+        st.session_state.comments = all_comments
         log_progress("Cleaning comments...", st.session_state.start_time)
         st.session_state.comments = df_character_cleaning(st.session_state.comments)
+        st.write(f"Total comments: {len(st.session_state.comments)}")
 
     if st.session_state.comments is not None:
         if st.session_state.sentiment == True:
@@ -255,13 +282,16 @@ def main():
             st.subheader("Marketing Actions Recommendations 🛠️")
             st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
         else:
-            marketing_process(
-                st.session_state.resp_list,
-                st.session_state.movie_info_str,
-                st.session_state.movie_id,
-                st.session_state.goal,
-                st.session_state.time,
-            )
+            if st.session_state.topic_match == True:
+                marketing_process(
+                    filter_topics(comments_topics_df),
+                    st.session_state.movie_info_str,
+                    st.session_state.movie_id,
+                    st.session_state.goal,
+                    st.session_state.time,
+                )
+            else:
+                st.write("Please approve topic match to proceed with marketing actions")
 
 
 if __name__ == "__main__":

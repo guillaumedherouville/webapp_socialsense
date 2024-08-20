@@ -1,6 +1,8 @@
 import openai
 import streamlit as st
 from imdb import IMDb
+from config import profiles
+import ast
 
 
 class ChatGPT:
@@ -31,7 +33,28 @@ goals = {
 }
 
 
-def generate_marketing_suggestions(topics, movie_info, goal, time_horizon):
+def choose_profile(movie_info, profiles):
+    analyst = ChatGPT(
+        system_message="You are a staffer at a movie marketing company. You are tasked with assigning certain profiles to certain jobs. For each reply, take a deep breath and think step by step."
+    )
+    analyst_prompt = f"""
+    A new client is coming to you with a movie to market.
+    Here is information on the given film: {movie_info}
+    Your role is to choose the two most appropriate marketers for this movie, from the following list: {profiles}.
+    Your output should be 2 digits in list-format, indicating the position in the list of the relevant profiles. 
+    Start directly with the list and include nothing else.
+    """
+    analyst.add_user_message(analyst_prompt)
+    summarized_chunk = analyst.get_response()
+    return summarized_chunk
+
+
+def generate_marketing_suggestions(topics, movie_info, goal, time_horizon, profile):
+    analyst = ChatGPT(
+        system_message=f"You are a senior marketing analyst at a movie company. Specifically, this is your profile : {profile}. \
+        You are tasked with creating a set of marketing actions for a new movie, based on the topics that users are discussing. \
+        For each reply, take a deep breath and think step by step."
+    )
     analyst_prompt = f"""
     Here is information on the given film of interest: {movie_info}
     Here are the general topics people are discussing related to this film: \n {topics}
@@ -40,14 +63,10 @@ def generate_marketing_suggestions(topics, movie_info, goal, time_horizon):
     Mention explicitly which topic each suggestion refers to.
     For example, if the first topic is "excitement over the country music style of the movie", the goal is "conversion to socials" and time horizon "6 months" one suggestion could be : 
     "Country Music Engagement : In order to build on the excitement over the movie soundtrack (topic 1), identify country music events (e.g. country artists concerts or country festivals) happening soon and have the movie crew participate in one of them."
-    Notice how it explicetely refers to topic 1, so it is easy to link the suggestion to the topic.
+    Notice how it explicetly refers to topic 1, so it is easy to link the suggestion to the topic.
     Please ensure each suggestion is unique; do not repeat similar suggestions times.
     Start directly with the list. 
     """
-    analyst = ChatGPT(
-        system_message="You are a senior marketing analyst at a big movie production company. You are tasked with creating a set of marketing actions for a new movie, based on the topics that users are discussing. \
-            You are in competition with another analyst for this task, one of you will be fired and the other promoted. For each reply, take a deep breath and think step by step."
-    )
     analyst.add_user_message(analyst_prompt)
     summarized_chunk = analyst.get_response()
     return summarized_chunk, analyst
@@ -136,66 +155,53 @@ def get_movie_info(movie_id):
 
 
 @st.cache_data(show_spinner=False)
-def marketing_process(topics, movie_info, movie_id, goal, time_horizon, critic=critic):
+def marketing_process(
+    topics, movie_info, movie_id, goal, time_horizon, critic=critic, profiles=profiles
+):
     st.subheader("Marketing Actions Recommendations 🛠️")
-    st.markdown("#### Perplexity info:")
-    info = get_movie_info(movie_id)
-    st.write(info)
+    # st.markdown("#### Perplexity info:")
+    # info = get_movie_info(movie_id)
+    # st.write(info)
+    profile = choose_profile(movie_info, profiles)
+    st.write(profile)
+    profile = ast.literal_eval(profile)
     st.markdown("#### Marketing suggestions #1")
     marketing_suggestions1, analyst1 = generate_marketing_suggestions(
-        topics, movie_info, goal, time_horizon
+        topics, movie_info, goal, time_horizon, profiles[int(profile[0])]
     )
     marketing_suggestions2, analyst2 = generate_marketing_suggestions(
-        topics, movie_info, goal, time_horizon
+        topics, movie_info, goal, time_horizon, profiles[int(profile[1])]
     )
     col1, col2 = st.columns(2, vertical_alignment="center")
     with col1:
         display_suggestions(marketing_suggestions1)
     with col2:
         display_suggestions(marketing_suggestions2)
-    all_suggestions1 = marketing_suggestions1 + marketing_suggestions2
-    critic_message1, critic = review_marketing_suggestions(
-        topics, movie_info, all_suggestions1, critic, first_pass=True
-    )
-    st.write(critic_message1)
-
-    st.markdown("#### Marketing suggestions #2")
-    revised_suggestions1, analyst1 = improve_marketing_suggestions(
-        analyst1, critic_message1, marketing_suggestions2
-    )
-    revised_suggestions2, analyst2 = improve_marketing_suggestions(
-        analyst2, critic_message1, marketing_suggestions1
-    )
-    col1, col2 = st.columns(2, vertical_alignment="center")
-    with col1:
-        display_suggestions(revised_suggestions1)
-    with col2:
-        display_suggestions(revised_suggestions2)
-    all_suggestions2 = revised_suggestions1 + revised_suggestions2
-    critic_message2, critic = review_marketing_suggestions(
-        None,
-        None,
-        all_suggestions2,
-        critic,
-        None,
-        final=True,  # delete the last two for previous
-    )
-    st.write(critic_message2)
-
-    # st.markdown("#### Marketing suggestions #3")
-    # final_suggestions1, analyst1 = improve_marketing_suggestions(
-    #     analyst1, critic_message2, marketing_suggestions2
+    # all_suggestions1 = marketing_suggestions1 + marketing_suggestions2
+    # critic_message1, critic = review_marketing_suggestions(
+    #     topics, movie_info, all_suggestions1, critic, first_pass=True
     # )
-    # final_suggestions2, analyst2 = improve_marketing_suggestions(
-    #     analyst2, critic_message2, marketing_suggestions1
+    # st.write(critic_message1)
+
+    # st.markdown("#### Marketing suggestions #2")
+    # revised_suggestions1, analyst1 = improve_marketing_suggestions(
+    #     analyst1, critic_message1, marketing_suggestions2
+    # )
+    # revised_suggestions2, analyst2 = improve_marketing_suggestions(
+    #     analyst2, critic_message1, marketing_suggestions1
     # )
     # col1, col2 = st.columns(2, vertical_alignment="center")
     # with col1:
-    #     display_suggestions(final_suggestions1)
+    #     display_suggestions(revised_suggestions1)
     # with col2:
-    #     display_suggestions(final_suggestions2)
-    # final_suggestions = final_suggestions1 + final_suggestions2
+    #     display_suggestions(revised_suggestions2)
+    # all_suggestions2 = revised_suggestions1 + revised_suggestions2
     # critic_message2, critic = review_marketing_suggestions(
-    #     None, None, final_suggestions, critic, None, final=True
+    #     None,
+    #     None,
+    #     all_suggestions2,
+    #     critic,
+    #     None,
+    #     final=True,  # delete the last two for previous
     # )
     # st.write(critic_message2)
