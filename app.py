@@ -177,7 +177,7 @@ def main():
     )
     st.sidebar.markdown("**Progress**")
     col1.toggle("Sentiment graphs", False, key="sentiment")
-    col2.toggle("Match comments", False, key="topic_match")
+    col2.toggle("Match comments", True, key="topic_match")
     col3.toggle("Marketing_standard", False, key="marketing")
     col4.write("Objective :")
     col41.selectbox(
