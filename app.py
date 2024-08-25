@@ -283,6 +283,13 @@ def main():
             st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
         else:
             if st.session_state.topic_match == True:
+                st.write("Round 0:")
+                st.session_state.marketing_actions = generate_summary_marketing(
+                    st.session_state.resp_list, st.session_state.movie_info_str
+                )
+                st.subheader("Marketing Actions Recommendations 🛠️")
+                st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
+                st.subheader("Agentic Marketing Actions")
                 marketing_process(
                     filter_topics(comments_topics_df),
                     st.session_state.movie_info_str,
