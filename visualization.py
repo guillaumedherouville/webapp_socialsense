@@ -39,12 +39,12 @@ def sentiment_viz(overall_sentiment_df):
     )
     ax.set_xticklabels(sentiment_df.columns[1:], fontsize=14)
     legend = plt.legend(loc="upper left", bbox_to_anchor=(1, 1), ncol=1, fontsize=12)
-    legend.set_title("Movies", prop={"size": 14})  # Set legend title
+    legend.set_title("Comparisons", prop={"size": 14})  # Set legend title
     legend.get_frame().set_facecolor("white")  # Set legend background color
     legend.get_frame().set_edgecolor("black")
     plt.setp(ax.get_xticklabels(), rotation=0, horizontalalignment="right")
     ax.set_title(
-        "Comparison of Sentiment for Various Movies",
+        "Comparison of Sentiment for Other References",
         fontsize=20,
         fontweight="bold",
         pad=20,
@@ -85,12 +85,12 @@ def emotion_viz(overall_sentiment_df):
     )
     ax.set_xticklabels(emotion_df.columns[1:], fontsize=14)
     legend = plt.legend(loc="upper left", bbox_to_anchor=(1, 1), ncol=1, fontsize=12)
-    legend.set_title("Movies", prop={"size": 14})
+    legend.set_title("Comparisons", prop={"size": 14})
     legend.get_frame().set_facecolor("white")
     legend.get_frame().set_edgecolor("black")
     plt.setp(ax.get_xticklabels(), rotation=0, horizontalalignment="right")
     ax.set_title(
-        "Comparison of Emotion for Various Movies",
+        "Comparison of Emotion for Other References",
         fontsize=20,
         fontweight="bold",
         pad=20,
