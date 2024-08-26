@@ -126,3 +126,62 @@ Sky = {
 }
 
 games = [Mercury, Sun, Aces, Dream, Sky]
+
+# Set up comparison DataFrame
+SmackDown = {
+    "negative": "21.9%",
+    "neutral": "43.7%",
+    "positive": "34.5%",
+    "sadness": "8.7%",
+    "joy": "41.4%",
+    "love": "2.0%",
+    "anger": "39.3%",
+    "fear": "7.4%",
+    "surprise": "1.3%",
+}
+Breakker_Zayn = {
+    "negative": "20.3%",
+    "neutral": "36.2%",
+    "positive": "43.6%",
+    "sadness": "8.4%",
+    "joy": "47.8%",
+    "love": "2.1%",
+    "anger": "34.4%",
+    "fear": "5.6%",
+    "surprise": "1.7%",
+}
+Raw = {
+    "negative": "27.7%",
+    "neutral": "41.6%",
+    "positive": "30.8%",
+    "sadness": "8.7%",
+    "joy": "42.1%",
+    "love": "1.8%",
+    "anger": "39.6%",
+    "fear": "6.6%",
+    "surprise": "1.1%",
+}
+Orton_Gunther = {
+    "negative": "20.3%",
+    "neutral": "43.2%",
+    "positive": "36.6%",
+    "sadness": "5.1%",
+    "joy": "47.8%",
+    "love": "1.5%",
+    "anger": "37.5%",
+    "fear": "6.1%",
+    "surprise": "2.1%",
+}
+Hendry_Lee_Dunne = {
+    "negative": "17.7%",
+    "neutral": "38.0%",
+    "positive": "44.3%",
+    "sadness": "5.7%",
+    "joy": "55.0%",
+    "love": "0.7%",
+    "anger": "32.6%",
+    "fear": "4.1%",
+    "surprise": "1.8%",
+}
+
+wwe = [SmackDown, Breakker_Zayn, Raw, Orton_Gunther, Hendry_Lee_Dunne]
