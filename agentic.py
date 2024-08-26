@@ -63,7 +63,7 @@ def generate_marketing_suggestions(topics, movie_info, goal, time_horizon, profi
     Mention explicitly which topic each suggestion refers to.
     For example, if the first topic is "excitement over the country music style of the movie", the goal is "conversion to socials" and time horizon "6 months" one suggestion could be : 
     "Country Music Engagement : In order to build on the excitement over the movie soundtrack (topic 1), identify country music events (e.g. country artists concerts or country festivals) happening soon and have the movie crew participate in one of them."
-    Notice how it explicetly refers to topic 1, so it is easy to link the suggestion to the topic.
+    Notice how it explicitly refers to topic 1, so it is easy to link the suggestion to the topic.
     Please ensure each suggestion is unique; do not repeat similar suggestions times.
     Start directly with the list. 
     """
@@ -154,6 +154,7 @@ def improve_marketing_suggestions(analyst, critic_message, competing_suggestions
         Given all suggestions, an advanced reviewer from your team has provided the following evaluations and explanations : {critic_message}
         Please review the feedback and provide a new set of 5 suggestions. You can keep some of the old ones if they are good enough, but you must provide at least 2 new suggestions which were in neither of the previous lists.
         Your suggestions must improve based on the feedback provided by the advanced reviewer, in a relevant manner.
+        Remember to explicitly mention which topic each suggestion refers to.
         Output the revised suggestions in list-format, with details for each suggestion. Start directly with the list and do not include other text.
     """
     analyst.add_user_message(analyst_prompt)
