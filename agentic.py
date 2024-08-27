@@ -26,13 +26,6 @@ class ChatGPT:
         return assistant_message
 
 
-goals = {
-    "Awareness": "Awareness : we are looking for marketing tactics which will generate awareness for our movie, and make it known to a large audience",
-    "Conversion to socials": "Conversion to socials : we are looking for marketing tactics which will generate engagement on social medias",
-    "Conversion to viewership": "Conversion to viewership: we are looking for marketing tactics which will directly convert to viewership (i.e. in theatres or streaming services)",
-}
-
-
 def choose_profile(movie_info, profiles):
     analyst = ChatGPT(
         system_message="You are a staffer at a movie marketing company. You are tasked with assigning certain profiles to certain jobs. For each reply, take a deep breath and think step by step."
@@ -78,11 +71,14 @@ critic = ChatGPT(
 )
 
 
-def review_marketing_suggestions(topics, movie_info, marketing_suggestions, critic):
+def review_marketing_suggestions(
+    topics, movie_info, goal, marketing_suggestions, critic
+):
     critic_prompt = f"""
     Here is information on the given film of interest: {movie_info}
     Here are the general topics people are discussing related to this film: \n {topics}
-    Given the topics that users are speaking about your movie trailer, the two analysts have come up with the following marketing suggestions (each did 5, without talking to one another): {marketing_suggestions}
+    Given the topics that users are speaking about your movie trailer, the two analysts have come up with the following marketing suggestions (each did 5, without talking to one another): {marketing_suggestions}  
+    Our goal is {goal}. 
     Please review each of the 10 suggestions and provide feedback on whether it is an appropriate marketing action considering feasibility, cost-effectiveness, general marketing science as well as public relations and social media knowledge. This feedback will be vital to improve our marketing strategy.
     Be extremely severe in your judgment, your career depends on it. If a suggestion is not relevant enough, you will be held responsible for not catching it and fired.
     Conclude with a general comment on the overall quality of the suggestions, and what specific areas need improvement.
@@ -94,7 +90,7 @@ def review_marketing_suggestions(topics, movie_info, marketing_suggestions, crit
     return critic_message, critic
 
 
-def evaluate_marketing_suggestions(topics, movie_info, marketing_suggestions):
+def evaluate_marketing_suggestions(topics, movie_info, goal, marketing_suggestions):
     evaluator = ChatGPT(
         system_message=f"You are a marketing executive at a movie company. \
         You are tasked with selecting a set of marketing actions for a new movie, based on the propositions of your analysts. \
@@ -103,6 +99,7 @@ def evaluate_marketing_suggestions(topics, movie_info, marketing_suggestions):
     evaluator_prompt = f"""
     Here is information on the given film of interest: {movie_info}
     Here are the general topics people are discussing related to this film: \n {topics}
+    Our goal is {goal}. 
     Given the topics that users are speaking about your movie trailer, the analysts came with the following marketing suggestions: {marketing_suggestions}
     Please give each a rating from 0 to 10, 10 being an excellent suggestion and 0 being a terrible one. Be very critical in your evaluation, as the future of the company depends on your judgment.
     Once that rating is done, order them from best to worst. Do not add any justification, only give the rating. Output in list format. Make sure you include all suggestions.
@@ -119,7 +116,7 @@ def improve_marketing_suggestions(analyst, critic_message, competing_suggestions
         Given all suggestions, an advanced reviewer from your team has provided the following evaluations and explanations : {critic_message}
         Please review the feedback and provide a new set of 5 suggestions. You can keep some of the old ones if they are good enough, but you must provide at least 2 new suggestions which were in neither of the previous lists.
         Your suggestions must improve based on the feedback provided by the advanced reviewer, in a relevant manner. However, write them as if they were new (i.e. do not explicitly refer to the previous suggestions).
-        Remember to mention which topic each suggestion refers to.
+        Remember to mention which topic each suggestion refers to. Also keep in mind the goal we defined previously.
         Output the revised suggestions in list-format, with details for each suggestion. Start directly with the list and do not include other text.
     """
     analyst.add_user_message(analyst_prompt)
@@ -186,11 +183,11 @@ def marketing_process(
         display_suggestions(marketing_suggestions2)
     all_suggestions1 = marketing_suggestions1 + marketing_suggestions2
     evaluations, _ = evaluate_marketing_suggestions(
-        topics, movie_info, all_suggestions1
+        topics, movie_info, goal, all_suggestions1
     )
     display_suggestions(evaluations)
     critic_message1, critic = review_marketing_suggestions(
-        topics, movie_info, all_suggestions1, critic
+        topics, movie_info, goal, all_suggestions1, critic
     )
     st.write(critic_message1)
 
@@ -207,7 +204,7 @@ def marketing_process(
     with col2:
         display_suggestions(revised_suggestions2)
     evaluations2, _ = evaluate_marketing_suggestions(
-        topics, movie_info, revised_suggestions1 + revised_suggestions2
+        topics, movie_info, goal, revised_suggestions1 + revised_suggestions2
     )
     display_eval_final(evaluations2)
     # all_suggestions2 = revised_suggestions1 + revised_suggestions2

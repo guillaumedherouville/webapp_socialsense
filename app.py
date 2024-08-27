@@ -18,6 +18,12 @@ import re
 from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
 from agentic import marketing_process, get_movie_info
 
+goals = {
+    "Awareness": "Awareness : we are looking for marketing tactics which will generate awareness for our movie, and make it known to a large audience",
+    "Conversion to socials": "Conversion to socials : we are looking for marketing tactics which will generate engagement on social medias",
+    "Conversion to viewership": "Conversion to viewership: we are looking for marketing tactics which will directly convert to viewership (i.e. in theatres or streaming services)",
+}
+
 
 def extract_youtube_id(input_string):
     pattern = r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?(?:embed\/)?(?:v\/)?(?:shorts\/)?(?P<id>[^\s&?\/]+)"
@@ -186,12 +192,12 @@ def main():
     col2.toggle("Match comments", True, key="topic_match")
     col3.toggle("Marketing_standard", False, key="marketing")
     col4.write("Objective :")
-    col41.selectbox(
+    goal = col41.selectbox(
         "Marketing goal",
         ["Awareness", "Conversion to socials", "Conversion to viewership"],
-        key="goal",
         label_visibility="collapsed",
     )
+    st.session_state.goal = goals[goal]
     col5.write("Time horizon :")
     col51.selectbox(
         "Time horizon",
