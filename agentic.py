@@ -72,41 +72,6 @@ def generate_marketing_suggestions(topics, movie_info, goal, time_horizon, profi
     return summarized_chunk, analyst
 
 
-# def review_marketing_suggestions(
-#     topics, movie_info, marketing_suggestions, critic, first_pass=False, final=False
-# ):
-#     suffix = f"""
-#     Please review each suggestion and provide feedback on whether it is an appropriate marketing action considering feasibility, cost-effectiveness, general marketing science as well as public relations and social media knowledge. This feedback will be vital to improve our marketing strategy.
-#     Be extremely severe in your judgment, your career depends on it. If a suggestion is not relevant enough, you will be held responsible for not catching it and fired.
-#     At the beginning of your review, make sure to provide a clear ranking of the 10 suggestions, from best to worst.
-#     Conclude with a general comment on the overall quality of the suggestions, and what specific areas need improvement.
-#     Do not include meta information in your reply.
-#     """
-
-#     if first_pass == True:
-#         critic_prompt = f"""
-#         Here is information on the given film of interest: {movie_info}
-#         Here are the general topics people are discussing related to this film: \n {topics}
-#         Given the topics that users are speaking about your movie trailer, the two analysts have come up with the following marketing suggestions, in no particular order: {marketing_suggestions}
-#         {suffix}
-#         """
-#     else:
-#         critic_prompt = f"""
-#         Given your feedback, the two analysts have revised the marketing suggestions for the film. Here are the updated suggestions: {marketing_suggestions}
-#         {suffix}"""
-#     if final == True:
-#         critic_prompt = f"""
-#         Given your feedback, the two analysts have revised the marketing suggestions for the film. Here are the final updated suggestions: {marketing_suggestions}
-#         Please review each suggestion assign it a score based of whether it is an appropriate marketing action considering feasibility, cost-effectiveness, general marketing science as well as public relations and social media knowledge. This feedback will be vital to improve our marketing strategy.
-#         Be extremely severe in your judgment, your career depends on it.
-#         Return the top 5 best unique suggestions, in list format, with the exact same format as it was provided by the analyst.
-#         Start directly with the list and do not include other text."""
-
-#     critic.add_user_message(critic_prompt)
-#     critic_message = critic.get_response()
-#     return critic_message, critic
-
-
 critic = ChatGPT(
     system_message="You are a senior marketing associate at a big movie production company. You are tasked with guiding two junior analysts to provide optimal marketing actions for a new movie, based on the topics that users are discussing. \
     For each reply, take a deep breath and think step by step. I will tip you $100."
@@ -153,8 +118,8 @@ def improve_marketing_suggestions(analyst, critic_message, competing_suggestions
         The other analyst has provided these suggestions: {competing_suggestions}
         Given all suggestions, an advanced reviewer from your team has provided the following evaluations and explanations : {critic_message}
         Please review the feedback and provide a new set of 5 suggestions. You can keep some of the old ones if they are good enough, but you must provide at least 2 new suggestions which were in neither of the previous lists.
-        Your suggestions must improve based on the feedback provided by the advanced reviewer, in a relevant manner.
-        Remember to explicitly mention which topic each suggestion refers to.
+        Your suggestions must improve based on the feedback provided by the advanced reviewer, in a relevant manner. However, write them as if they were new (i.e. do not explicitly refer to the previous suggestions).
+        Remember to mention which topic each suggestion refers to.
         Output the revised suggestions in list-format, with details for each suggestion. Start directly with the list and do not include other text.
     """
     analyst.add_user_message(analyst_prompt)
@@ -172,6 +137,7 @@ def display_eval_final(evaluations):
     st.markdown("\n".join(resp_list[:5]))
 
 
+@st.cache_data(show_spinner=False)
 def get_movie_info(movie_id):
     ia = IMDb()
     movie = ia.get_movie(movie_id)
@@ -199,12 +165,12 @@ def get_movie_info(movie_id):
 def marketing_process(
     topics, movie_info, movie_id, goal, time_horizon, critic=critic, profiles=profiles
 ):
-    st.subheader("Marketing Actions Recommendations 🛠️")
-    st.markdown("#### Perplexity info:")
-    info = get_movie_info(movie_id)
-    st.write(info)
+    # st.subheader("Marketing Actions Recommendations 🛠️")
+    # st.markdown("#### Perplexity info:")
+    # info = get_movie_info(movie_id)
+    # st.write(info)
     profile = choose_profile(movie_info, profiles)
-    st.write(profile)
+    # st.write(profile)
     profile = ast.literal_eval(profile)
     st.markdown("#### Marketing suggestions #1")
     marketing_suggestions1, analyst1 = generate_marketing_suggestions(

@@ -16,7 +16,7 @@ from processing import (
 from config import movies
 import re
 from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
-from agentic import marketing_process
+from agentic import marketing_process, get_movie_info
 
 
 def extract_youtube_id(input_string):
@@ -121,6 +121,12 @@ def main():
         st.session_state.marketing_actions = None
     if "start_time" not in st.session_state:
         st.session_state.start_time = None
+    if "context" not in st.session_state:
+        st.session_state.context = None
+    if "go" not in st.session_state:
+        st.session_state.go = None
+    if "value" not in st.session_state:
+        st.session_state.value = None
 
     st.markdown(
         """
@@ -245,60 +251,78 @@ def main():
                 emotion_viz(st.session_state.table)
 
         st.header("Advanced Topic Analysis 🔎")
-        log_progress("Generating summary...", st.session_state.start_time)
+        perplexity_info = get_movie_info(st.session_state.movie_id)
         _, st.session_state.entities_df = create_entities_df(st.session_state.movie_id)
         st.session_state.movie_info_str = create_movie_info(
             st.session_state.movie_id, st.session_state.entities_df
         )
-        st.session_state.resp_list = summarize_comments(
-            st.session_state.comments, st.session_state.movie_info_str
+
+        st.session_state.context = (
+            perplexity_info + "\n\n" + st.session_state.movie_info_str
         )
-        display_summary(st.session_state.resp_list)
-        # st.markdown("#### IMBD info:")
-        # st.write(st.session_state.movie_info_str)
-
-        if st.session_state.topic_match == True:
-            log_progress("Matching comments to topics...", st.session_state.start_time)
-            comments_topics_df = process_comments_in_batches(
-                st.session_state.comments,
-                st.session_state.resp_list,
-                batch_size=min(len(st.session_state.comments) // 10, 50),
+        st.session_state.value = st.session_state.context
+        context = st.text_area(
+            "Context found:", value=st.session_state.value, height=400
+        )
+        if st.button("Confirm"):
+            st.session_state.context = context
+            st.session_state.go = True
+        if st.session_state.go == True:
+            log_progress("Generating summary...", st.session_state.start_time)
+            st.session_state.resp_list = summarize_comments(
+                st.session_state.comments, st.session_state.context
             )
-            log_progress("Done!", st.session_state.start_time)
-            # st.subheader("Breakdown of comments by topic")
-            st.markdown("#### Breakdown of comments by topic:")
-            col1, col2 = st.columns(2, vertical_alignment="center")
-            # _, col2, _ = st.columns([1, 3, 1])
-            with col2:
-                display_comments_by_topic(comments_topics_df)
-            with col1:
-                display_selected_topic(st.session_state.resp_list, comments_topics_df)
-
-        log_progress("Suggesting marketing actions...", st.session_state.start_time)
-        if st.session_state.marketing == True:
-            st.session_state.marketing_actions = generate_summary_marketing(
-                st.session_state.resp_list, st.session_state.movie_info_str
-            )
-            st.subheader("Marketing Actions Recommendations 🛠️")
-            st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
-        else:
+            display_summary(st.session_state.resp_list)
             if st.session_state.topic_match == True:
-                st.write("Round 0:")
+                log_progress(
+                    "Matching comments to topics...", st.session_state.start_time
+                )
+                comments_topics_df = process_comments_in_batches(
+                    st.session_state.comments,
+                    st.session_state.resp_list,
+                    batch_size=min(len(st.session_state.comments) // 10, 50),
+                )
+                log_progress("Done!", st.session_state.start_time)
+                # st.subheader("Breakdown of comments by topic")
+                st.markdown("#### Breakdown of comments by topic:")
+                col1, col2 = st.columns(2, vertical_alignment="center")
+                # _, col2, _ = st.columns([1, 3, 1])
+                with col2:
+                    display_comments_by_topic(comments_topics_df)
+                with col1:
+                    display_selected_topic(
+                        st.session_state.resp_list, comments_topics_df
+                    )
+
+            log_progress("Suggesting marketing actions...", st.session_state.start_time)
+            if st.session_state.marketing == True:
                 st.session_state.marketing_actions = generate_summary_marketing(
-                    st.session_state.resp_list, st.session_state.movie_info_str
+                    st.session_state.resp_list, st.session_state.context
                 )
                 st.subheader("Marketing Actions Recommendations 🛠️")
                 st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
-                st.subheader("Agentic Marketing Actions")
-                marketing_process(
-                    filter_topics(comments_topics_df),
-                    st.session_state.movie_info_str,
-                    st.session_state.movie_id,
-                    st.session_state.goal,
-                    st.session_state.time,
-                )
             else:
-                st.write("Please approve topic match to proceed with marketing actions")
+                if st.session_state.topic_match == True:
+                    st.write("Round 0:")
+                    st.session_state.marketing_actions = generate_summary_marketing(
+                        st.session_state.resp_list, st.session_state.context
+                    )
+                    st.subheader("Marketing Actions Recommendations 🛠️")
+                    st.markdown("#### Vanilla suggestions")
+                    st.markdown(
+                        "\n".join(st.session_state.marketing_actions.splitlines())
+                    )
+                    marketing_process(
+                        filter_topics(comments_topics_df),
+                        st.session_state.context,
+                        st.session_state.movie_id,
+                        st.session_state.goal,
+                        st.session_state.time,
+                    )
+                else:
+                    st.write(
+                        "Please approve topic match to proceed with marketing actions"
+                    )
 
 
 if __name__ == "__main__":
