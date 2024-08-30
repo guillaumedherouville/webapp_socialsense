@@ -22,6 +22,7 @@ import json
 import ast
 import concurrent.futures
 import streamlit as st
+from textwrap import dedent
 
 
 nltk.download("stopwords")
@@ -431,7 +432,7 @@ def TOTAL_SUMMARIZER(texts, token_threshold, movie_info_str):
     candidate_text = "\n".join(first_pass_summaries)
 
     iterations = 0
-    candidate_len = np.inf
+    candidate_len = len(candidate_text)
 
     while candidate_len > token_threshold:
         iterations += 1
