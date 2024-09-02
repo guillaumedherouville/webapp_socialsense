@@ -257,7 +257,7 @@ def main():
                 emotion_viz(st.session_state.table)
 
         st.header("Advanced Topic Analysis 🔎")
-        perplexity_info = get_movie_info(st.session_state.movie_id)
+        perplexity_info = "" #get_movie_info(st.session_state.movie_id)
         _, st.session_state.entities_df = create_entities_df(st.session_state.movie_id)
         st.session_state.movie_info_str = create_movie_info(
             st.session_state.movie_id, st.session_state.entities_df
