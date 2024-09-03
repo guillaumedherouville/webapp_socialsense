@@ -8,7 +8,6 @@ from processing import (
     get_comments_sentiment,
     comparison_table,
     create_entities_df,
-    TOTAL_SUMMARIZER,
     create_movie_info,
     generate_summary_marketing,
     process_comments_in_batches,
@@ -16,7 +15,7 @@ from processing import (
 from config import movies
 import re
 from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
-from agentic import marketing_process, get_movie_info
+from agentic import marketing_process, get_movie_info, comments_summarizer
 
 goals = {
     "Awareness": "Awareness : we are looking for marketing tactics which will generate awareness for our movie, and make it known to a large audience",
@@ -58,7 +57,7 @@ def log_progress(message, start_time):
 
 @st.cache_data(show_spinner=False)
 def summarize_comments(df, movie_info_str):
-    all_resp = TOTAL_SUMMARIZER(df, 3900, movie_info_str)
+    all_resp = comments_summarizer(df, movie_info_str)
     resp_list = [item for item in all_resp.splitlines() if item]
     return resp_list
 

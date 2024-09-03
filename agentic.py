@@ -26,6 +26,38 @@ class ChatGPT:
         return assistant_message
 
 
+def comments_summarizer(comments, context):
+    text = "\n".join(comments)
+    chat = ChatGPT(
+        system_message="You are an expert text summarizer and analyzer for a production company. Please analyze from the perspective of a producer for this movie. \
+                                You will select the most common topics expressed by consumers regarding a movie trailer."
+    )
+    summarize_prompt = f"""This is a summarization of comments regarding a movie trailer, concerning a movie with this information: \n {context} \n. \
+                        First, list the top 5 most promininent positive aspects of the trailer/film that commenters like and want to see more of.\
+                        Next, list the top 5 most promininent negative aspects of the trailer/film that commenters dislike and/or might cause them to not watch the film.\
+                        Please place them in a single list separated by by numbers (ex. 1. Theme 1 \n 2. Theme 2 \n etc.) and nothing else \
+                        (for example, do not separate into positive and negative groupings. Rather express how they are positive and negative in the themes themseleves) \
+                        Also, DO NOT use any apostrophes (') in your response. \
+                        In your generation, allow for the topics to be mutually exclusive and collectively exhaustive; each topic should be unique, but all the topics together should comprise the most prominent ideas expressed.\
+                        Do not generate more than the 5 positive topics, followed by the 5 negative topics, for a total of 10 topics separeted by one space each. \
+                        Here is an example to guide you on how a response should be structured: \
+                        1. Positive anticipation for George Millers unique directorial style and passionate fan base hoping to see it continued.
+                        2. Thrilled about the increased focus and storyline around Furiosas character and her increased role in future films.
+                        3. Great expectations for Anya Taylor-Joy and Chris Hemsworths performances, as well as other major players in the film.
+                        4. Excitement for the continuation and expansion of the Mad Max franchise and universe.
+                        5. Praise for the trailer's music and visually-appealing components which give a glimpse into the films quality.
+                        6. Negative reactions due to the absence of the main character, Mad Max, portrayed by Tom Hardy, causing doubts among viewers.
+                        7. Dislike for perceived overreliance on CGI, as viewers believe it takes away from the gritty reality originally established in the series.
+                        8. Concerns about perceived forced female empowerment and an overshadowing feminist agenda.
+                        9. Doubts about the casting of Anya Taylor-Joy and Chris Hemsworth, with some fans feeling they may not fit the franchises aesthetics.
+                        10. Disappointment due to the lack of traditional practical effects and real stunt work, which viewers believe adds authenticity to the series.
+                        \n### TEXT\n{text}\n\n### BEGIN RESPONSE\n"""
+    chat.add_user_message(summarize_prompt)
+    topics = chat.get_response()
+    return topics
+
+
+
 def choose_profile(movie_info, profiles):
     analyst = ChatGPT(
         system_message="You are a staffer at a movie marketing company. You are tasked with assigning certain profiles to certain jobs. For each reply, take a deep breath and think step by step."
@@ -207,13 +239,5 @@ def marketing_process(
         topics, movie_info, goal, revised_suggestions1 + revised_suggestions2
     )
     display_eval_final(evaluations2)
-    # all_suggestions2 = revised_suggestions1 + revised_suggestions2
-    # critic_message2, critic = review_marketing_suggestions(
-    #     None,
-    #     None,
-    #     all_suggestions2,
-    #     critic,
-    #     None,
-    #     final=True,  # delete the last two for previous
-    # )
-    # st.write(critic_message2)
+
+
