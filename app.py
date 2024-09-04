@@ -18,7 +18,7 @@ from config import movies, wwe
 import re
 from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
 from sport import sports_table, summarize_sports, sports_marketing
-
+from agentic import comments_summarizer
 
 def extract_youtube_id(input_string):
     pattern = r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?(?:embed\/)?(?:v\/)?(?:shorts\/)?(?P<id>[^\s&?\/]+)"
