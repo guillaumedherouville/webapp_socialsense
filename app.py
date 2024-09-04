@@ -141,6 +141,7 @@ def main():
         unsafe_allow_html=True,
     )
 
+    st.sidebar.toggle("Sport", False, key="sport")
     col1, col2 = st.columns(2)
     with col1:
         youtube_ref = st.text_input("Youtube video id or link")
@@ -158,7 +159,6 @@ def main():
                     st.error("Please enter a valid IMDB ref")
 
     # col1, col2, _ = st.columns([1, 1, 3])
-    st.sidebar.toggle("Sport", False, key="sport", on_change=True)
     st.sidebar.markdown("**Progress**")
     # col1.toggle("Match comments", False, key="topic_match")
     if st.button("Submit"):
