@@ -53,7 +53,7 @@ def log_progress(message, start_time):
 
 @st.cache_data(show_spinner=False)
 def summarize_comments(df, movie_info_str):
-    all_resp = TOTAL_SUMMARIZER(df, 3900, movie_info_str)
+    all_resp = comments_summarizer(df, movie_info_str)
     resp_list = [item for item in all_resp.splitlines() if item]
     return resp_list
 
