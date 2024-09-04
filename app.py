@@ -13,9 +13,10 @@ from processing import (
     generate_summary_marketing,
     process_comments_in_batches,
 )
-from config import movies
+from config import movies, wwe
 import re
 from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
+from sport import sports_table, summarize_sports, sports_marketing
 
 
 def extract_youtube_id(input_string):
@@ -113,6 +114,8 @@ def main():
         st.session_state.marketing_actions = None
     if "start_time" not in st.session_state:
         st.session_state.start_time = None
+    if "sport" not in st.session_state:
+        st.session_state.sport = False
 
     st.markdown(
         """
@@ -138,8 +141,8 @@ def main():
         unsafe_allow_html=True,
     )
 
+    st.sidebar.toggle("Sport", False, key="sport")
     col1, col2 = st.columns(2)
-
     with col1:
         youtube_ref = st.text_input("Youtube video id or link")
         if youtube_ref:
@@ -147,12 +150,13 @@ def main():
             if st.session_state.video_id is None:
                 st.error("Please enter a valid YouTube ref")
 
-    with col2:
-        imdb_ref = st.text_input("IMDB movie id or link")
-        if imdb_ref:
-            st.session_state.movie_id = extract_imdb_id(imdb_ref)
-            if st.session_state.movie_id is None:
-                st.error("Please enter a valid IMDB ref")
+    if st.session_state.sport == False:
+        with col2:
+            imdb_ref = st.text_input("IMDB movie id or link")
+            if imdb_ref:
+                st.session_state.movie_id = extract_imdb_id(imdb_ref)
+                if st.session_state.movie_id is None:
+                    st.error("Please enter a valid IMDB ref")
 
     # col1, col2, _ = st.columns([1, 1, 3])
     st.sidebar.markdown("**Progress**")
@@ -173,9 +177,12 @@ def main():
                 st.session_state.comments
             )
             log_progress("Creating comparison table...", st.session_state.start_time)
-            st.session_state.table = comparison_table(
-                st.session_state.all_scores, st.session_state.movie_id, movies
-            )
+            if st.session_state.sport:
+                st.session_state.table = sports_table(st.session_state.all_scores, wwe)
+            else:
+                st.session_state.table = comparison_table(
+                    st.session_state.all_scores, st.session_state.movie_id, movies
+                )
             st.session_state.first_analysis_complete = True
 
     if st.session_state.get("first_analysis_complete", False):
@@ -201,13 +208,18 @@ def main():
 
         st.header("Advanced Topic Analysis 🔎")
         log_progress("Generating summary...", st.session_state.start_time)
-        _, st.session_state.entities_df = create_entities_df(st.session_state.movie_id)
-        st.session_state.movie_info_str = create_movie_info(
-            st.session_state.movie_id, st.session_state.entities_df
-        )
-        st.session_state.resp_list = summarize_comments(
-            st.session_state.comments, st.session_state.movie_info_str
-        )
+        if st.session_state.sport:
+            st.session_state.resp_list = summarize_sports(st.session_state.comments)
+        else:
+            _, st.session_state.entities_df = create_entities_df(
+                st.session_state.movie_id
+            )
+            st.session_state.movie_info_str = create_movie_info(
+                st.session_state.movie_id, st.session_state.entities_df
+            )
+            st.session_state.resp_list = summarize_comments(
+                st.session_state.comments, st.session_state.movie_info_str
+            )
         display_summary(st.session_state.resp_list)
         # if st.session_state.topic_match:
         log_progress("Matching comments to topics...", st.session_state.start_time)
@@ -218,17 +230,22 @@ def main():
         )
         log_progress("Done!", st.session_state.start_time)
         # st.subheader("Breakdown of comments by topic")
-        st.markdown("#### Breakdown of comments by topic:")
+        # st.markdown("#### Breakdown of comments by topic:")
         # col1, col2 = st.columns(2, vertical_alignment="center")
-        _, col2, _ = st.columns([1, 3, 1])
-        with col2:
-            display_comments_by_topic(comments_topics_df)
+        # # _, col2, _ = st.columns([1, 3, 1])
+        # with col2:
+        #     display_comments_by_topic(comments_topics_df)
         # with col1:
         #     display_selected_topic(st.session_state.resp_list, comments_topics_df)
         log_progress("Suggesting marketing actions...", st.session_state.start_time)
-        st.session_state.marketing_actions = generate_summary_marketing(
-            st.session_state.resp_list, st.session_state.movie_info_str
-        )
+        if st.session_state.sport:
+            st.session_state.marketing_actions = sports_marketing(
+                st.session_state.resp_list
+            )
+        else:
+            st.session_state.marketing_actions = generate_summary_marketing(
+                st.session_state.resp_list, st.session_state.movie_info_str
+            )
         st.subheader("Marketing Actions Recommendations 🛠️")
         st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
 
