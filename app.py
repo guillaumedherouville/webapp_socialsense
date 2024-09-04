@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 st.set_page_config(page_title="SocialSense by Jumpcut", layout="wide")
 import time
 from processing import (
@@ -9,7 +10,6 @@ from processing import (
     get_comments_sentiment,
     comparison_table,
     create_entities_df,
-    TOTAL_SUMMARIZER,
     create_movie_info,
     generate_summary_marketing,
     process_comments_in_batches,
