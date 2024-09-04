@@ -1,5 +1,7 @@
 import streamlit as st
-
+import pandas as pd
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 st.set_page_config(page_title="SocialSense by Jumpcut", layout="wide")
 import time
 from processing import (
@@ -8,7 +10,6 @@ from processing import (
     get_comments_sentiment,
     comparison_table,
     create_entities_df,
-    TOTAL_SUMMARIZER,
     create_movie_info,
     generate_summary_marketing,
     process_comments_in_batches,
@@ -17,7 +18,7 @@ from config import movies, wwe
 import re
 from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
 from sport import sports_table, summarize_sports, sports_marketing
-
+from agentic import comments_summarizer
 
 def extract_youtube_id(input_string):
     pattern = r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?(?:embed\/)?(?:v\/)?(?:shorts\/)?(?P<id>[^\s&?\/]+)"
@@ -52,7 +53,7 @@ def log_progress(message, start_time):
 
 @st.cache_data(show_spinner=False)
 def summarize_comments(df, movie_info_str):
-    all_resp = TOTAL_SUMMARIZER(df, 3900, movie_info_str)
+    all_resp = comments_summarizer(df, movie_info_str)
     resp_list = [item for item in all_resp.splitlines() if item]
     return resp_list
 
@@ -91,7 +92,7 @@ def main():
     if "movie_id" not in st.session_state:
         st.session_state.movie_id = None
     if "comments" not in st.session_state:
-        st.session_state.comments = None
+        st.session_state.comments = []
     if "all_scores" not in st.session_state:
         st.session_state.all_scores = None
     if "entities_df" not in st.session_state:
@@ -116,6 +117,8 @@ def main():
         st.session_state.start_time = None
     if "sport" not in st.session_state:
         st.session_state.sport = False
+    if "tiktok" not in st.session_state:
+        st.session_state.tiktok = None
 
     st.markdown(
         """
@@ -142,7 +145,7 @@ def main():
     )
 
     st.sidebar.toggle("Sport", False, key="sport")
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns([1, 1, 2], vertical_alignment="center")
     with col1:
         youtube_ref = st.text_input("Youtube video id or link")
         if youtube_ref:
@@ -157,21 +160,35 @@ def main():
                 st.session_state.movie_id = extract_imdb_id(imdb_ref)
                 if st.session_state.movie_id is None:
                     st.error("Please enter a valid IMDB ref")
+    
+    if st.session_state.sport == False:
+        with col3:
+            tiktok = st.file_uploader("Upload TikTok comments", type=["csv"])
+            if tiktok:
+                tiktok = pd.read_csv(tiktok)
+                st.session_state.tiktok = tiktok['Comment'].to_list()
+                if st.session_state.tiktok is None:
+                    st.error("Please provide a 'Comment' column in your csv file")
 
     # col1, col2, _ = st.columns([1, 1, 3])
     st.sidebar.markdown("**Progress**")
     # col1.toggle("Match comments", False, key="topic_match")
+
     if st.button("Submit"):
         with st.spinner(
             "Processing... (see progress in sidebar - average time 3-5mins)"
         ):
             st.session_state.start_time = time.time()
             log_progress("Extracting comments...", st.session_state.start_time)
-            st.session_state.comments = generate_comments(
-                st.session_state.video_id, st.secrets["YT_KEY"], max_comments=1_000
-            )
+            if st.session_state.video_id:
+                st.session_state.comments = generate_comments(
+                    st.session_state.video_id, st.secrets["YT_KEY"], max_comments=1_000
+                )
+            if st.session_state.tiktok is not None:
+                st.session_state.comments = st.session_state.comments + st.session_state.tiktok
             log_progress("Cleaning comments...", st.session_state.start_time)
-            st.session_state.comments = df_character_cleaning(st.session_state.comments)
+            st.session_state.comments = df_character_cleaning(st.session_state.comments[:1000])
+            st.write('Number of comments processed:', len(st.session_state.comments))
             log_progress("Calculating sentiment scores...", st.session_state.start_time)
             st.session_state.all_scores = get_comments_sentiment(
                 st.session_state.comments
@@ -186,6 +203,9 @@ def main():
             st.session_state.first_analysis_complete = True
 
     if st.session_state.get("first_analysis_complete", False):
+        if st.session_state.tiktok:
+            st.write("Preview of tiktok comments:")
+            st.table(st.session_state.tiktok[:10])
         st.header("Movie Sentiment and Emotion Analysis 🎈")
         st.subheader("Sentiment Analysis")
         col1, col2 = st.columns(2, vertical_alignment="center")
@@ -219,15 +239,15 @@ def main():
             )
             st.session_state.resp_list = summarize_comments(
                 st.session_state.comments, st.session_state.movie_info_str
-            )
+            ) 
         display_summary(st.session_state.resp_list)
         # if st.session_state.topic_match:
-        log_progress("Matching comments to topics...", st.session_state.start_time)
-        comments_topics_df = process_comments_in_batches(
-            st.session_state.comments,
-            st.session_state.resp_list,
-            batch_size=min(len(st.session_state.comments) // 10, 50),
-        )
+        # log_progress("Matching comments to topics...", st.session_state.start_time)
+        # comments_topics_df = process_comments_in_batches(
+        #     st.session_state.comments,
+        #     st.session_state.resp_list,
+        #     batch_size=min(len(st.session_state.comments) // 10, 50),
+        # )
         log_progress("Done!", st.session_state.start_time)
         # st.subheader("Breakdown of comments by topic")
         # st.markdown("#### Breakdown of comments by topic:")
