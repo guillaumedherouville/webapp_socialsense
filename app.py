@@ -242,21 +242,21 @@ def main():
             ) 
         display_summary(st.session_state.resp_list)
         # if st.session_state.topic_match:
-        # log_progress("Matching comments to topics...", st.session_state.start_time)
-        # comments_topics_df = process_comments_in_batches(
-        #     st.session_state.comments,
-        #     st.session_state.resp_list,
-        #     batch_size=min(len(st.session_state.comments) // 10, 50),
-        # )
-        log_progress("Done!", st.session_state.start_time)
-        # st.subheader("Breakdown of comments by topic")
-        # st.markdown("#### Breakdown of comments by topic:")
-        # col1, col2 = st.columns(2, vertical_alignment="center")
-        # # _, col2, _ = st.columns([1, 3, 1])
-        # with col2:
-        #     display_comments_by_topic(comments_topics_df)
-        # with col1:
-        #     display_selected_topic(st.session_state.resp_list, comments_topics_df)
+        if st.session_state.sport == False:
+            log_progress("Matching comments to topics...", st.session_state.start_time)
+            comments_topics_df = process_comments_in_batches(
+                st.session_state.comments,
+                st.session_state.resp_list,
+                batch_size=min(len(st.session_state.comments) // 10, 50),
+            )
+            st.subheader("Breakdown of comments by topic")
+            st.markdown("#### Breakdown of comments by topic:")
+            col1, col2 = st.columns(2, vertical_alignment="center")
+            # _, col2, _ = st.columns([1, 3, 1])
+            with col2:
+                display_comments_by_topic(comments_topics_df)
+            with col1:
+                display_selected_topic(st.session_state.resp_list, comments_topics_df)
         log_progress("Suggesting marketing actions...", st.session_state.start_time)
         if st.session_state.sport:
             st.session_state.marketing_actions = sports_marketing(
@@ -268,6 +268,7 @@ def main():
             )
         st.subheader("Marketing Actions Recommendations 🛠️")
         st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
+        log_progress("Done!", st.session_state.start_time)
 
 
 if __name__ == "__main__":
