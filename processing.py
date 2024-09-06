@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import re
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from transformers import pipeline
 import nltk
 from functools import partial
@@ -24,7 +24,7 @@ import streamlit as st
 
 nltk.download("stopwords")
 nltk.download("vader_lexicon")
-load_dotenv()
+# load_dotenv()
 encoding = tiktoken.encoding_for_model("gpt-4o")
 
 classifier_1 = pipeline(
@@ -516,9 +516,9 @@ def match_topics_comments(text, all_resp):
   I always come back to this movie. Theres nothing like it. Every time I re watch it, theres always something I noice that I didnt the last time. Its art. And the way its created is perfect. \n
   A special movie dedicated to founders of the Facebook and what did went inside their friendship through the process of creating the worlds dominant mass reaching communication forum. Acted perfectly by Andrew and Jesse its a definite watch for audiences across the world. \n
   just rewatched the film last night - even if its not 100% accurate, its a masterpiece of filmmaking, sound design, cinematography. \n
-  Lex Luthor created Facebook.
-  A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up.
-  He's smart, but I don't trust him.
+  Lex Luthor created Facebook. \n
+  A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up. \n
+  He's smart, but I don't trust him. \n
 
 
   The output would be:
