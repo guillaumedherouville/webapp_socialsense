@@ -2,10 +2,10 @@ import os
 import numpy as np
 import pandas as pd
 import re
-from dotenv import load_dotenv
+
+# from dotenv import load_dotenv
 from transformers import pipeline
 import nltk
-from functools import partial
 from nltk.sentiment import SentimentIntensityAnalyzer
 import emoji
 import tiktoken
@@ -19,12 +19,11 @@ import openai
 import html
 import json
 import ast
-import concurrent.futures
 import streamlit as st
 
 nltk.download("stopwords")
 nltk.download("vader_lexicon")
-load_dotenv()
+# load_dotenv()
 encoding = tiktoken.encoding_for_model("gpt-4o")
 
 classifier_1 = pipeline(
@@ -502,23 +501,23 @@ def match_topics_comments(text, all_resp):
     topic_analysis_prompt = f"""The following statements represent general expressed themes associated with a set of movie trailer comments \n {all_resp} \n
   You will be given a set of comments concerning the same movie trailer. For each comment, I would like you
   to ouput the original, unedited comment, along with indicators for each comment topic. If the comment relates to the topic,
-  you will assign it a 1, otherwise you will assign it a 0. You will output this as a list in JSON format. \n
+  you will assign it a 1, otherwise you will assign it a 0. You will output this as a list in JSON format. 
 
   For example, consider these topics concerning the trailer for The Social Network:
-  1. Overwhelming admiration for the quality of the film and trailer with regards to storytelling, presentation and overall execution. \n
-  2. Great appreciation for Director David Finchers directing prowess and his depiction of Facebooks rise, resonating with societal themes. \n
+  1. Overwhelming admiration for the quality of the film and trailer with regards to storytelling, presentation and overall execution. 
+  2. Great appreciation for Director David Finchers directing prowess and his depiction of Facebooks rise, resonating with societal themes. 
   3. Highly appreciated performances from the cast, with special mentions of actors such as Andrew Garfield and Jesse Eisenberg.
-  4. Viewer disapproval of Facebook as a platform and its societal impact, potentially skewing their perception of the film negatively. \n
-  5. Criticisms on historical inaccuracy in the portrayal of Facebooks inception and portrayal of Mark Zuckerberg. \n
+  4. Viewer disapproval of Facebook as a platform and its societal impact, potentially skewing their perception of the film negatively. 
+  5. Criticisms on historical inaccuracy in the portrayal of Facebooks inception and portrayal of Mark Zuckerberg. 
 
   And these comments:
-  I hate Facebook and I love this movie \n
-  I always come back to this movie. Theres nothing like it. Every time I re watch it, theres always something I noice that I didnt the last time. Its art. And the way its created is perfect. \n
-  A special movie dedicated to founders of the Facebook and what did went inside their friendship through the process of creating the worlds dominant mass reaching communication forum. Acted perfectly by Andrew and Jesse its a definite watch for audiences across the world. \n
-  just rewatched the film last night - even if its not 100% accurate, its a masterpiece of filmmaking, sound design, cinematography. \n
-  Lex Luthor created Facebook.
-  A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up.
-  He's smart, but I don't trust him.
+  I hate Facebook and I love this movie 
+  I always come back to this movie. Theres nothing like it. Every time I re watch it, theres always something I noice that I didnt the last time. Its art. And the way its created is perfect. 
+  A special movie dedicated to founders of the Facebook and what did went inside their friendship through the process of creating the worlds dominant mass reaching communication forum. Acted perfectly by Andrew and Jesse its a definite watch for audiences across the world. 
+  just rewatched the film last night - even if its not 100% accurate, its a masterpiece of filmmaking, sound design, cinematography. 
+  Lex Luthor created Facebook. 
+  A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up. 
+  He's smart, but I don't trust him. 
 
 
   The output would be:
@@ -613,15 +612,10 @@ Please output in the same format for these comments {text} and the provided them
 def generate_summary_marketing(resp_list, movie_info_str):
     topic_analysis_prompt = f"""
     Here is information on the given film of interest: {movie_info_str}
-
     Here are the general topics people are discussing related to this film: \n {resp_list}
-
     Given the topics that users are speaking about your movie trailer, output 5 of the most relevant marketing suggestions you can concoct to help promote the film in list-format, with details for being included in application to this specific film.
-
     Please lend creative and specific suggestions to help market this film.
-
     Please ensure each suggestion is unique; do not repeat similar suggestions multiple times.
-
     Start directly with the list, do not include other text, and be concise (yet detailed) in your suggestions."""
     try:
         chat = ChatGPT(
@@ -629,24 +623,6 @@ def generate_summary_marketing(resp_list, movie_info_str):
         )
         chat.add_user_message(topic_analysis_prompt)
         summarized_chunk = chat.get_response()
-
     except Exception as e:
         print(f"Error during initial summarization: {e}")
-
     return summarized_chunk
-
-
-@st.cache_data(show_spinner=False)
-def process_comments_in_batches(comments, summary, batch_size=50):
-    batches = []
-    for i in range(0, len(comments), batch_size):
-        batches.append(comments[i : i + batch_size])
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        results = list(
-            executor.map(partial(match_topics_comments, all_resp=summary), batches)
-        )
-    flattened_result = [
-        item for sublist in results if sublist is not None for item in sublist
-    ]
-    df = pd.DataFrame(flattened_result)
-    return df

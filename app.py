@@ -1,6 +1,10 @@
 import streamlit as st
 import pandas as pd
 import os
+from functools import partial
+import concurrent.futures
+
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 st.set_page_config(page_title="SocialSense by Jumpcut", layout="wide")
 import time
@@ -11,14 +15,20 @@ from processing import (
     comparison_table,
     create_entities_df,
     create_movie_info,
-    generate_summary_marketing,
-    process_comments_in_batches,
+    match_topics_comments,
 )
 from config import movies, wwe
 import re
 from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
-from sport import sports_table, summarize_sports, sports_marketing
-from agentic import comments_summarizer
+from sport import (
+    sports_table,
+    summarize_sports,
+    sports_marketing_process,
+    topic_attribution_sports,
+    sports_goals,
+)
+from agentic import comments_summarizer, marketing_process, goals
+
 
 def extract_youtube_id(input_string):
     pattern = r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?(?:embed\/)?(?:v\/)?(?:shorts\/)?(?P<id>[^\s&?\/]+)"
@@ -58,6 +68,20 @@ def summarize_comments(df, movie_info_str):
     return resp_list
 
 
+@st.cache_data(show_spinner=False)
+def process_comments_in_batches(comments, summary, _match_fctn, batch_size=50):
+    batches = []
+    for i in range(0, len(comments), batch_size):
+        batches.append(comments[i : i + batch_size])
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(executor.map(partial(_match_fctn, all_resp=summary), batches))
+    flattened_result = [
+        item for sublist in results if sublist is not None for item in sublist
+    ]
+    df = pd.DataFrame(flattened_result)
+    return df
+
+
 def display_summary(resp_list):
     st.markdown("#### Aspects of the trailer/film that commenters like:")
     likes = "".join([f"{item}\n" for item in resp_list[:5]])
@@ -83,6 +107,15 @@ def display_selected_topic(summary, comments_topics_df):
             with st.container(height=300, border=True):
                 for idx, row in john.iterrows():
                     st.write(row[0])
+
+
+def filter_topics(comments_topics_df):
+    temp = comments_topics_df.set_index("0").dropna()
+    temp = temp.loc[:, temp.sum(axis=0) > len(temp.loc[temp.sum(axis=1) == 1]) * 0.05]
+    index_list = temp.columns.tolist()
+    index_list = [int(i) for i in index_list]
+    original_positions = [st.session_state.resp_list[i - 1] for i in index_list]
+    return original_positions
 
 
 def main():
@@ -119,6 +152,8 @@ def main():
         st.session_state.sport = False
     if "tiktok" not in st.session_state:
         st.session_state.tiktok = None
+    if "goal" not in st.session_state:
+        st.session_state.goal = None
 
     st.markdown(
         """
@@ -160,21 +195,32 @@ def main():
                 st.session_state.movie_id = extract_imdb_id(imdb_ref)
                 if st.session_state.movie_id is None:
                     st.error("Please enter a valid IMDB ref")
-    
+
     if st.session_state.sport == False:
         with col3:
             tiktok = st.file_uploader("Upload TikTok comments", type=["csv"])
             if tiktok:
                 tiktok = pd.read_csv(tiktok)
-                st.session_state.tiktok = tiktok['Comment'].to_list()
+                st.session_state.tiktok = tiktok["Comment"].to_list()
                 if st.session_state.tiktok is None:
                     st.error("Please provide a 'Comment' column in your csv file")
 
-    # col1, col2, _ = st.columns([1, 1, 3])
-    st.sidebar.markdown("**Progress**")
-    # col1.toggle("Match comments", False, key="topic_match")
-
-    if st.button("Submit"):
+    col1, col2, col3 = st.columns(3, vertical_alignment="center")
+    col2.write("Objective :")
+    goal = col3.selectbox(
+        "Marketing goal",
+        (
+            ["Awareness", "Conversion to socials", "Conversion to viewership"]
+            if not st.session_state.sport
+            else ["Youtube videos", "Character development", "General marketing"]
+        ),
+        label_visibility="collapsed",
+    )
+    st.session_state.goal = (
+        goals[goal] if not st.session_state.sport else sports_goals[goal]
+    )
+    if col1.button("Submit"):
+        st.sidebar.markdown("**Progress**")
         with st.spinner(
             "Processing... (see progress in sidebar - average time 3-5mins)"
         ):
@@ -185,10 +231,14 @@ def main():
                     st.session_state.video_id, st.secrets["YT_KEY"], max_comments=1_000
                 )
             if st.session_state.tiktok is not None:
-                st.session_state.comments = st.session_state.comments + st.session_state.tiktok
+                st.session_state.comments = (
+                    st.session_state.comments + st.session_state.tiktok
+                )
             log_progress("Cleaning comments...", st.session_state.start_time)
-            st.session_state.comments = df_character_cleaning(st.session_state.comments[:1000])
-            st.write('Number of comments processed:', len(st.session_state.comments))
+            st.session_state.comments = df_character_cleaning(
+                st.session_state.comments[:1000]
+            )
+            st.write("Number of comments processed:", len(st.session_state.comments))
             log_progress("Calculating sentiment scores...", st.session_state.start_time)
             st.session_state.all_scores = get_comments_sentiment(
                 st.session_state.comments
@@ -203,6 +253,7 @@ def main():
             st.session_state.first_analysis_complete = True
 
     if st.session_state.get("first_analysis_complete", False):
+        st.write("Number of comments processed:", len(st.session_state.comments))
         if st.session_state.tiktok:
             st.write("Preview of tiktok comments:")
             st.table(st.session_state.tiktok[:10])
@@ -239,36 +290,37 @@ def main():
             )
             st.session_state.resp_list = summarize_comments(
                 st.session_state.comments, st.session_state.movie_info_str
-            ) 
-        display_summary(st.session_state.resp_list)
-        # if st.session_state.topic_match:
-        if st.session_state.sport == False:
-            log_progress("Matching comments to topics...", st.session_state.start_time)
-            comments_topics_df = process_comments_in_batches(
-                st.session_state.comments,
-                st.session_state.resp_list,
-                batch_size=min(len(st.session_state.comments) // 10, 50),
             )
-            st.subheader("Breakdown of comments by topic")
-            st.markdown("#### Breakdown of comments by topic:")
-            col1, col2 = st.columns(2, vertical_alignment="center")
-            # _, col2, _ = st.columns([1, 3, 1])
-            with col2:
-                display_comments_by_topic(comments_topics_df)
-            with col1:
-                display_selected_topic(st.session_state.resp_list, comments_topics_df)
+        display_summary(st.session_state.resp_list)
+        log_progress("Matching comments to topics...", st.session_state.start_time)
+        comments_topics_df = process_comments_in_batches(
+            st.session_state.comments,
+            st.session_state.resp_list,
+            (
+                match_topics_comments
+                if not st.session_state.sport
+                else topic_attribution_sports
+            ),
+            batch_size=min(len(st.session_state.comments) // 10, 50),
+        )
+        st.subheader("Breakdown of comments by topic 📍")
+        col1, col2 = st.columns(2, vertical_alignment="center")
+        with col2:
+            display_comments_by_topic(comments_topics_df)
+        with col1:
+            display_selected_topic(st.session_state.resp_list, comments_topics_df)
         log_progress("Suggesting marketing actions...", st.session_state.start_time)
         if st.session_state.sport:
-            st.session_state.marketing_actions = sports_marketing(
-                st.session_state.resp_list
+            st.session_state.marketing_actions = sports_marketing_process(
+                filter_topics(comments_topics_df),
+                st.session_state.goal,
             )
         else:
-            st.session_state.marketing_actions = generate_summary_marketing(
-                st.session_state.resp_list, st.session_state.movie_info_str
+            marketing_process(
+                filter_topics(comments_topics_df),
+                st.session_state.movie_info_str,
+                st.session_state.goal,
             )
-        st.subheader("Marketing Actions Recommendations 🛠️")
-        st.markdown("\n".join(st.session_state.marketing_actions.splitlines()))
-        log_progress("Done!", st.session_state.start_time)
 
 
 if __name__ == "__main__":
