@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from functools import partial
 import concurrent.futures
+import random
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -154,6 +155,8 @@ def main():
         st.session_state.tiktok = None
     if "goal" not in st.session_state:
         st.session_state.goal = None
+    if "trailers" not in st.session_state:
+        st.session_state.trailers = []
 
     st.markdown(
         """
@@ -181,12 +184,30 @@ def main():
 
     st.sidebar.toggle("Sport", False, key="sport")
     col1, col2, col3 = st.columns([1, 1, 2], vertical_alignment="center")
-    with col1:
-        youtube_ref = st.text_input("Youtube video id or link")
-        if youtube_ref:
-            st.session_state.video_id = extract_youtube_id(youtube_ref)
-            if st.session_state.video_id is None:
-                st.error("Please enter a valid YouTube ref")
+    if st.session_state.sport == False:
+        with col1:
+            youtube_ref = st.text_input("Youtube video id or link")
+            if youtube_ref:
+                st.session_state.video_id = extract_youtube_id(youtube_ref)
+                if st.session_state.video_id is None:
+                    st.error("Please enter a valid YouTube ref")
+    else:
+        with col1:
+            st.session_state.number = st.text_input("Number of trailers?", "1")
+            if st.session_state.number:
+                if st.session_state.number.isdigit():
+                    st.session_state.number = int(st.session_state.number)
+                else:
+                    st.error("Please enter a valid number")
+                for i in range(st.session_state.number):
+                    youtube_ref = st.text_input(f"Youtube video id or link {i+1}")
+                    if youtube_ref:
+                        video_id = extract_youtube_id(youtube_ref)
+                        if video_id is None:
+                            st.error("Please enter a valid YouTube ref")
+                        else:
+                            if video_id not in st.session_state.trailers:
+                                st.session_state.trailers.append(video_id)
 
     if st.session_state.sport == False:
         with col2:
@@ -226,17 +247,35 @@ def main():
         ):
             st.session_state.start_time = time.time()
             log_progress("Extracting comments...", st.session_state.start_time)
-            if st.session_state.video_id:
-                st.session_state.comments = generate_comments(
-                    st.session_state.video_id, st.secrets["YT_KEY"], max_comments=1_000
-                )
+            if st.session_state.sport and st.session_state.number > 1:
+                all_comments = []
+                for video_id in st.session_state.trailers:
+                    comments = generate_comments(
+                        video_id,
+                        st.secrets["YT_KEY"],
+                        max_comments=1_000,
+                    )
+                    all_comments.extend(comments)
+                random.shuffle(all_comments)
+                st.session_state.comments = all_comments[
+                    :1000
+                ]  ## PUT SOME PADDING IF WE DO FILTER FOR ENGLISH COMMENTS
+            else:
+                if st.session_state.video_id:
+                    st.session_state.comments = generate_comments(
+                        st.session_state.video_id,
+                        st.secrets["YT_KEY"],
+                        max_comments=1_000,
+                    )
             if st.session_state.tiktok is not None:
                 st.session_state.comments = (
                     st.session_state.comments + st.session_state.tiktok
                 )
             log_progress("Cleaning comments...", st.session_state.start_time)
             st.session_state.comments = df_character_cleaning(
-                st.session_state.comments[:1000]
+                st.session_state.comments[
+                    :1000
+                ]  ## NOT NEEDED WHEN WE DON'T FILTER FOR ENGLISH ONLY
             )
             st.write("Number of comments processed:", len(st.session_state.comments))
             log_progress("Calculating sentiment scores...", st.session_state.start_time)
@@ -280,7 +319,12 @@ def main():
         st.header("Advanced Topic Analysis 🔎")
         log_progress("Generating summary...", st.session_state.start_time)
         if st.session_state.sport:
-            st.session_state.resp_list = summarize_sports(st.session_state.comments)
+            if st.session_state.number == 1:
+                st.session_state.resp_list = summarize_sports(st.session_state.comments)
+            else:
+                st.session_state.resp_list = summarize_sports(
+                    st.session_state.comments, True
+                )
         else:
             _, st.session_state.entities_df = create_entities_df(
                 st.session_state.movie_id

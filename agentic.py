@@ -39,13 +39,13 @@ def comments_summarizer(comments, context):
                         You will select the most common topics expressed by consumers regarding a movie trailer."
     )
     summarize_prompt = f"""This is a summarization of comments regarding a movie trailer, concerning a movie with this information: \n {context} \n. \
-                        First, list the top 5 most promininent positive aspects of the trailer/film that commenters like and want to see more of.\
-                        Next, list the top 5 most promininent negative aspects of the trailer/film that commenters dislike and/or might cause them to not watch the film.\
+                        First, list the top 5 most prominent positive aspects of the trailer/film that commenters like and want to see more of.\
+                        Next, list the top 5 most prominent negative aspects of the trailer/film that commenters dislike and/or might cause them to not watch the film.\
                         Please place them in a single list separated by by numbers (ex.\n1. Theme 1\n2. Theme 2\netc.) and nothing else \
-                        (for example, do not separate into positive and negative groupings. Rather express how they are positive and negative in the themes themseleves) \
+                        (for example, do not separate into positive and negative groupings. Rather express how they are positive and negative in the themes themselves) \
                         Also, DO NOT use any apostrophes (') in your response. \
                         In your generation, allow for the topics to be mutually exclusive and collectively exhaustive; each topic should be unique, but all the topics together should comprise the most prominent ideas expressed.\
-                        Do not generate more than the 5 positive topics, followed by the 5 negative topics, for a total of 10 topics separeted by one space each. \
+                        Do not generate more than the 5 positive topics, followed by the 5 negative topics, for a total of 10 topics separated by one space each. \
                         Here is an example to guide you on how a response should be structured: 
                         1. Positive anticipation for George Millers unique directorial style and passionate fan base hoping to see it continued.
                         2. Thrilled about the increased focus and storyline around Furiosas character and her increased role in future films.
