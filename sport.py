@@ -51,13 +51,6 @@ def sports_table(all_scores, movies):
     return overall_sentiment_df
 
 
-@st.cache_data(show_spinner=False)
-def summarize_sports(df):
-    all_resp = sports_summarizer(df)
-    resp_list = [item for item in all_resp.splitlines() if item]
-    return resp_list
-
-
 def sports_summarizer(comments):
     text = "\n".join(comments)
     chat = ChatGPT(
@@ -65,13 +58,13 @@ def sports_summarizer(comments):
                             You will select the most common topics expressed by consumers regarding a World Wrestling Entertainment (WWE) video."
     )
     summarize_prompt = f"""This is a summarization of comments regarding a WWE video. \
-            First, list the top 5 most promininent positive aspects of the content that commenters like and want to see more of. \
-            Next, list the top 5 most promininent negative aspects of the content that commenters dislike and/or might cause them to stop watching WWE videos. \
+            First, list the top 5 most prominent positive aspects of the content that commenters like and want to see more of. \
+            Next, list the top 5 most prominent negative aspects of the content that commenters dislike and/or might cause them to stop watching WWE videos. \
             Please place them in a single list separated by numbers (ex.\n1. Theme 1\n2. Theme 2\netc.) and nothing else \
-            (for example, do not separate into positive and negative groupings. Rather express how they are positive and negative in the themes themseleves) \
+            (for example, do not separate into positive and negative groupings. Rather express how they are positive and negative in the themes themselves) \
             Also, DO NOT use any apostrophes (') in your response. \
             In your generation, allow for the topics to be mutually exclusive and collectively exhaustive; each topic should be unique, but all the topics together should comprise the most prominent ideas expressed.\
-            Do not generate more than the 5 positive topics, followed by the 5 negative topics, for a total of 10 topics separeted by one space each. \
+            Do not generate more than the 5 positive topics, followed by the 5 negative topics, for a total of 10 topics separated by one space each. \
             Here is an example to guide you on how a response should be structured: 
             1. Positive anticipation for Roman Reigns' continued reign as champion and the potential challengers to his throne.
             2. Enthusiasm for the increased focus on women's wrestling, particularly the rivalry between Becky Lynch and Rhea Ripley.
@@ -87,6 +80,49 @@ def sports_summarizer(comments):
     chat.add_user_message(dedent(summarize_prompt))
     topics = chat.get_response()
     return topics
+
+
+def sports_summarizer_multi(comments):
+    text = "\n".join(comments)
+    chat = ChatGPT(
+        system_message="You are an expert text summarizer and analyzer for a medi production company. \
+                            You will select the most common topics expressed by consumers regarding World Wrestling Entertainment (WWE) videos."
+    )
+    summarize_prompt = f"""This is a summarization of comments regarding multiple WWE videos. \
+            Note that the comments are about multiple videos, which may have different themes, wrestlers, storylines and overall context. \
+            It is important to have a high-level view of these videos and identify the most common themes across all of them. \
+            First, list the top 5 most prominent positive aspects of the content that commenters like and want to see more of. \
+            Next, list the top 5 most prominent negative aspects of the content that commenters dislike and/or might cause them to stop watching WWE videos. \
+            Please place them in a single list separated by numbers (ex.\n1. Theme 1\n2. Theme 2\netc.) and nothing else \
+            (for example, do not separate into positive and negative groupings. Rather express how they are positive and negative in the themes themselves) \
+            Also, DO NOT use any apostrophes (') in your response. \
+            In your generation, allow for the topics to be mutually exclusive and collectively exhaustive; each topic should be unique, but all the topics together should comprise the most prominent ideas expressed.\
+            Do not generate more than the 5 positive topics, followed by the 5 negative topics, for a total of 10 topics separated by one space each. \
+            Here is an example to guide you on how a response should be structured: 
+            1. Positive anticipation for Roman Reigns' continued reign as champion and the potential challengers to his throne.
+            2. Excitement for European venues and crowds, with fans appreciating new events in cities like Berlin and Paris.
+            3. Enthusiasm for the increased focus on women's wrestling, particularly the rivalry between Becky Lynch and Rhea Ripley.
+            4. High expectations for upcoming matches featuring rising stars like LA Knight and established veterans.
+            5. Praise for improved production values, including elaborate entrance themes and stage designs for major events.
+            6. Criticism of repeating storylines and narratives in WWE, resulting in people praising AEW.
+            7. Concerns about the booking of the tag team division, particularly the underutilization of teams like The New Day.
+            8. Disappointment over John Cena's limited appearances and lack of substantial storylines.
+            9. Negative reactions to the perceived overexposure of celebrities like Logan Paul in high-profile matches.
+            10. Doubts about pushing certain wrestlers like Omos, with some fans feeling they may not resonate with the audience.
+            \n### TEXT\n{text}\n\n### BEGIN RESPONSE\n"""
+    chat.add_user_message(dedent(summarize_prompt))
+    topics = chat.get_response()
+    return topics
+
+
+@st.cache_data(show_spinner=False)
+def summarize_sports(df, multi=False):
+    if multi == False:
+        all_resp = sports_summarizer(df)
+    else:
+        all_resp = sports_summarizer_multi(df)
+    resp_list = [item for item in all_resp.splitlines() if item]
+    return resp_list
 
 
 def topic_attribution_sports(
@@ -297,9 +333,9 @@ def display_eval_final(evaluations):
 def sports_marketing_process(topics, goal, critic=critic, profiles=sport_profiles):
     profile = choose_profile(goal, profiles)
     profile = ast.literal_eval(profile)
-    st.write(
-        f"Profiles chosen: {profiles[int(profile[0])]} and {profiles[int(profile[1])]}"
-    )
+    # st.write(
+    #     f"Profiles chosen: {profiles[int(profile[0])]} and {profiles[int(profile[1])]}"
+    # )
     st.markdown("#### Marketing suggestions #1")
     marketing_suggestions1, analyst1 = generate_marketing_suggestions(
         topics, goal, profiles[int(profile[0])]
