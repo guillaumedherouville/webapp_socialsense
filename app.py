@@ -247,7 +247,7 @@ def main():
         ):
             st.session_state.start_time = time.time()
             log_progress("Extracting comments...", st.session_state.start_time)
-            if st.session_state.sport and st.session_state.number > 1:
+            if st.session_state.sport:
                 all_comments = []
                 for video_id in st.session_state.trailers:
                     comments = generate_comments(
