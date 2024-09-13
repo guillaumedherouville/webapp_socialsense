@@ -128,18 +128,6 @@ def dev_page():
                     :1000
                 ]  ## NOT NEEDED WHEN WE DON'T FILTER FOR ENGLISH ONLY
             )
-            st.write("Number of comments processed:", len(st.session_state.comments))
-            log_progress("Calculating sentiment scores...", st.session_state.start_time)
-            st.session_state.all_scores = get_comments_sentiment(
-                st.session_state.comments
-            )
-            log_progress("Creating comparison table...", st.session_state.start_time)
-            if st.session_state.sport:
-                st.session_state.table = sports_table(st.session_state.all_scores, wwe)
-            else:
-                st.session_state.table = comparison_table(
-                    st.session_state.all_scores, st.session_state.movie_id, movies
-                )
             st.session_state.first_analysis_complete = True
 
     if st.session_state.get("first_analysis_complete", False):
@@ -147,26 +135,6 @@ def dev_page():
         if st.session_state.tiktok is not None:
             st.write("Preview of tiktok comments:")
             st.table(st.session_state.tiktok[:10])
-        st.header("Movie Sentiment and Emotion Analysis 🎈")
-        st.subheader("Sentiment Analysis")
-        col1, col2 = st.columns(2, vertical_alignment="center")
-        col1.dataframe(
-            st.session_state.table.set_index("Title")[
-                ["negative", "neutral", "positive"]
-            ]
-        )
-        with col2:
-            sentiment_viz(st.session_state.table)
-        st.subheader("Emotion Analysis")
-        col1, col2 = st.columns(2, vertical_alignment="center")
-        col1.dataframe(
-            st.session_state.table.set_index("Title")[
-                ["sadness", "joy", "love", "anger", "fear", "surprise"]
-            ]
-        )
-        with col2:
-            emotion_viz(st.session_state.table)
-
         st.header("Advanced Topic Analysis 🔎")
         log_progress("Generating summary...", st.session_state.start_time)
         if st.session_state.sport:
@@ -183,11 +151,12 @@ def dev_page():
             st.session_state.movie_info_str = create_movie_info(
                 st.session_state.movie_id, st.session_state.entities_df
             )
+            st.markdown("Context")
             st.write(st.session_state.movie_info_str)
             st.session_state.resp_list = summarize_comments(
                 st.session_state.comments, st.session_state.movie_info_str
             )
-        display_summary(st.session_state.resp_list)
+        display_summary(st.session_state.resp_list, st.session_state.sport)
         log_progress("Matching comments to topics...", st.session_state.start_time)
         comments_topics_df = process_comments_in_batches(
             st.session_state.comments,
@@ -205,15 +174,16 @@ def dev_page():
             display_comments_by_topic(comments_topics_df)
         with col1:
             display_selected_topic(st.session_state.resp_list, comments_topics_df)
-        log_progress("Suggesting marketing actions...", st.session_state.start_time)
-        if st.session_state.sport:
-            st.session_state.marketing_actions = sports_marketing_process(
-                filter_topics(comments_topics_df),
-                st.session_state.goal,
-            )
-        else:
-            marketing_process(
-                filter_topics(comments_topics_df),
-                st.session_state.movie_info_str,
-                st.session_state.goal,
-            )
+        st.markdown("### No marketing : currently working on topic summarization only")
+        # log_progress("Suggesting marketing actions...", st.session_state.start_time)
+        # if st.session_state.sport:
+        #     st.session_state.marketing_actions = sports_marketing_process(
+        #         filter_topics(comments_topics_df),
+        #         st.session_state.goal,
+        #     )
+        # else:
+        #     marketing_process(
+        #         filter_topics(comments_topics_df),
+        #         st.session_state.movie_info_str,
+        #         st.session_state.goal,
+        #     )

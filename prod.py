@@ -183,7 +183,7 @@ def prod_page():
             st.session_state.resp_list = summarize_comments(
                 st.session_state.comments, st.session_state.movie_info_str
             )
-        display_summary(st.session_state.resp_list)
+        display_summary(st.session_state.resp_list, st.session_state.sport)
         log_progress("Matching comments to topics...", st.session_state.start_time)
         comments_topics_df = process_comments_in_batches(
             st.session_state.comments,

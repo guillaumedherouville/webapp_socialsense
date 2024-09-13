@@ -1,14 +1,8 @@
 import streamlit as st
-import pandas as pd
 import os
-from functools import partial
-import concurrent.futures
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 st.set_page_config(page_title="SocialSense by Jumpcut", layout="wide")
-import time
-import re
-from topic_summarization import comments_summarizer, Claude, ChatGPT
 from dev import dev_page
 from prod import prod_page
 
@@ -79,9 +73,11 @@ def main():
     st.sidebar.toggle("Sport", False, key="sport")
     st.sidebar.toggle("DEV", False, key="dev")
     if st.session_state.dev == False:
-        prod_page()
+        with st.spinner():
+            prod_page()
     else:
-        dev_page()
+        with st.spinner():
+            dev_page()
 
 
 if __name__ == "__main__":
