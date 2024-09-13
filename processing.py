@@ -18,12 +18,10 @@ import time
 import openai
 import html
 import json
-import ast
 import streamlit as st
 
 nltk.download("stopwords")
 nltk.download("vader_lexicon")
-# load_dotenv()
 encoding = tiktoken.encoding_for_model("gpt-4o")
 
 classifier_1 = pipeline(

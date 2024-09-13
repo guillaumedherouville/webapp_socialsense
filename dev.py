@@ -1,12 +1,6 @@
 import streamlit as st
 import pandas as pd
-import os
-from functools import partial
-import concurrent.futures
 import random
-
-# os.environ["TOKENIZERS_PARALLELISM"] = "false"
-# st.set_page_config(page_title="SocialSense by Jumpcut", layout="wide")
 import time
 from processing import (
     generate_comments,
@@ -18,7 +12,6 @@ from processing import (
     match_topics_comments,
 )
 from config import movies, wwe
-import re
 from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
 from sport import (
     sports_table,
@@ -28,161 +21,19 @@ from sport import (
     sports_goals,
 )
 from agentic import marketing_process, goals
-from topic_summarization import comments_summarizer, Claude, ChatGPT
+from app import (
+    extract_youtube_id,
+    extract_imdb_id,
+    log_progress,
+    summarize_comments,
+    process_comments_in_batches,
+    display_summary,
+    display_selected_topic,
+    filter_topics,
+)
 
 
-def extract_youtube_id(input_string):
-    pattern = r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?(?:embed\/)?(?:v\/)?(?:shorts\/)?(?P<id>[^\s&?\/]+)"
-    match = re.search(pattern, input_string)
-    if match:
-        return match.group("id")
-    elif re.match(r"^[a-zA-Z0-9_-]{11}$", input_string):
-        return input_string
-    else:
-        return None
-
-
-def extract_imdb_id(input_string):
-    url_pattern = r"(?:https?:\/\/)?(?:www\.)?imdb\.com\/title\/tt(\d+)"
-    id_pattern = r"^(tt)?(\d+)$"
-    url_match = re.search(url_pattern, input_string)
-    if url_match:
-        return url_match.group(1)
-    id_match = re.match(id_pattern, input_string)
-    if id_match:
-        return id_match.group(2)
-    else:
-        return None
-
-
-def log_progress(message, start_time):
-    elapsed = time.time() - start_time
-    minutes, seconds = divmod(int(elapsed), 60)
-    time_str = f"{minutes:02d}:{seconds:02d}"
-    st.sidebar.write(f"[{time_str}] {message}")
-
-
-@st.cache_data(show_spinner=False)
-def summarize_comments(df, movie_info_str):
-    all_resp = comments_summarizer(df, movie_info_str, Claude)
-    resp_list = [item for item in all_resp.splitlines() if item]
-    return resp_list
-
-
-@st.cache_data(show_spinner=False)
-def process_comments_in_batches(comments, summary, _match_fctn, batch_size=50):
-    batches = []
-    for i in range(0, len(comments), batch_size):
-        batches.append(comments[i : i + batch_size])
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        results = list(executor.map(partial(_match_fctn, all_resp=summary), batches))
-    flattened_result = [
-        item for sublist in results if sublist is not None for item in sublist
-    ]
-    df = pd.DataFrame(flattened_result)
-    return df
-
-
-def display_summary(resp_list):
-    st.markdown("#### Aspects of the trailer/film that commenters like:")
-    likes = "".join([f"{item}\n" for item in resp_list[:5]])
-    st.markdown(likes)
-
-    st.markdown("#### Aspects of the trailer/film that commenters dislike:")
-    dislikes = "".join([f"{item}\n" for item in resp_list[5:10]])
-    st.markdown(dislikes)
-
-
-def display_selected_topic(summary, comments_topics_df):
-    topic = st.selectbox(
-        "Select a topic for comments breakdown", summary, label_visibility="collapsed"
-    )
-    if topic:
-        i = int(summary.index(topic))
-        temp = comments_topics_df.set_index("0")
-        john = temp[temp.iloc[:, i] == 1]
-        john = john.reset_index()
-        if len(john) == 0:
-            st.write("No comment found matching this topic")
-        else:
-            with st.container(height=300, border=True):
-                for idx, row in john.iterrows():
-                    st.write(row[0])
-
-
-def filter_topics(comments_topics_df):
-    temp = comments_topics_df.set_index("0").dropna()
-    temp = temp.loc[:, temp.sum(axis=0) > len(temp.loc[temp.sum(axis=1) == 1]) * 0.05]
-    index_list = temp.columns.tolist()
-    index_list = [int(i) for i in index_list]
-    original_positions = [st.session_state.resp_list[i - 1] for i in index_list]
-    return original_positions
-
-
-def main():
-    # Initialize session state variables
-    if "video_id" not in st.session_state:
-        st.session_state.video_id = None
-    if "movie_id" not in st.session_state:
-        st.session_state.movie_id = None
-    if "comments" not in st.session_state:
-        st.session_state.comments = []
-    if "all_scores" not in st.session_state:
-        st.session_state.all_scores = None
-    if "entities_df" not in st.session_state:
-        st.session_state.entities_df = None
-    if "sorted_values" not in st.session_state:
-        st.session_state.sorted_values = None
-    if "sorted_values_2" not in st.session_state:
-        st.session_state.sorted_values_2 = None
-    if "temp" not in st.session_state:
-        st.session_state.temp = None
-    if "movie_info_str" not in st.session_state:
-        st.session_state.movie_info_str = None
-    if "first_analysis_complete" not in st.session_state:
-        st.session_state.first_analysis_complete = False
-    if "table" not in st.session_state:
-        st.session_state.table = None
-    if "resp_list" not in st.session_state:
-        st.session_state.resp_list = None
-    if "marketing_actions" not in st.session_state:
-        st.session_state.marketing_actions = None
-    if "start_time" not in st.session_state:
-        st.session_state.start_time = None
-    if "sport" not in st.session_state:
-        st.session_state.sport = False
-    if "tiktok" not in st.session_state:
-        st.session_state.tiktok = None
-    if "goal" not in st.session_state:
-        st.session_state.goal = None
-    if "trailers" not in st.session_state:
-        st.session_state.trailers = []
-
-    st.markdown(
-        """
-        <style>
-        .center-text {
-            text-align: center;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        '<div class="center-text"><h1>{}</h1></div>'.format(
-            "SocialSense by Jumpcut 🎬"
-        ),
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<div class="center-text"><h2>{}</h2></div>'.format(
-            "Social Intelligence and Marketing Optimization"
-        ),
-        unsafe_allow_html=True,
-    )
-
-    st.sidebar.toggle("Sport", False, key="sport")
+def dev_page():
     col1, col2, col3 = st.columns([1, 1, 2], vertical_alignment="center")
     if st.session_state.sport == False:
         with col1:
@@ -366,7 +217,3 @@ def main():
                 st.session_state.movie_info_str,
                 st.session_state.goal,
             )
-
-
-if __name__ == "__main__":
-    main()
