@@ -19,6 +19,7 @@ def sports_marketing():
     return None
 
 
+@st.cache_data(show_spinner=False)
 def sports_table(all_scores, movies):
     overall_sentiment = np.mean(np.array(all_scores).reshape(-1, 9), axis=0).tolist()
     overall_sentiment_df = pd.DataFrame(overall_sentiment)
@@ -375,3 +376,13 @@ def sports_marketing_process(topics, goal, critic=critic, profiles=sport_profile
     )
     st.markdown("[EVAL]")
     display_eval_final(evaluations2)
+
+
+def simple_sport(topics, goal, critic=critic, profiles=sport_profiles):
+    profile = choose_profile(goal, profiles)
+    profile = ast.literal_eval(profile)
+    st.markdown("#### Marketing suggestions")
+    marketing_suggestions1, analyst1 = generate_marketing_suggestions(
+        topics, goal, profiles[int(profile[0])]
+    )
+    display_suggestions(marketing_suggestions1)

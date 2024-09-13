@@ -27,8 +27,12 @@ def main():
         st.session_state.temp = None
     if "movie_info_str" not in st.session_state:
         st.session_state.movie_info_str = None
-    if "first_analysis_complete" not in st.session_state:
-        st.session_state.first_analysis_complete = False
+    if "value" not in st.session_state:
+        st.session_state.value = -1
+    if "devalue" not in st.session_state:
+        st.session_state.devalue = -1
+    if "first_analysis" not in st.session_state:
+        st.session_state.first_analysis = False
     if "table" not in st.session_state:
         st.session_state.table = None
     if "resp_list" not in st.session_state:
@@ -56,10 +60,10 @@ def main():
         """,
         unsafe_allow_html=True,
     )
-
+    emoji = "🎬" if st.session_state.sport is False else "🤼🏽"
     st.markdown(
         '<div class="center-text"><h1>{}</h1></div>'.format(
-            "SocialSense by Jumpcut 🎬"
+            f"SocialSense by Jumpcut {emoji}"
         ),
         unsafe_allow_html=True,
     )
@@ -70,14 +74,15 @@ def main():
         unsafe_allow_html=True,
     )
 
-    st.sidebar.toggle("Sport", False, key="sport")
+    def sport_change():
+        st.session_state.value *= -1
+
+    st.sidebar.toggle("Sport", False, key="sport", on_change=sport_change)
     st.sidebar.toggle("DEV", False, key="dev")
     if st.session_state.dev == False:
-        with st.spinner():
-            prod_page()
+        prod_page()
     else:
-        with st.spinner():
-            dev_page()
+        dev_page()
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
 from sport import (
     sports_table,
     summarize_sports,
-    sports_marketing_process,
+    simple_sport,
     topic_attribution_sports,
     sports_goals,
 )
@@ -120,31 +120,36 @@ def prod_page():
                         st.secrets["YT_KEY"],
                         max_comments=1_000,
                     )
-            if st.session_state.tiktok is not None:
-                st.session_state.comments = (
-                    st.session_state.comments + st.session_state.tiktok
-                )
-            log_progress("Cleaning comments...", st.session_state.start_time)
-            st.session_state.comments = df_character_cleaning(
-                st.session_state.comments[
-                    :1000
-                ]  ## NOT NEEDED WHEN WE DON'T FILTER FOR ENGLISH ONLY
-            )
-            log_progress("Calculating sentiment scores...", st.session_state.start_time)
-            st.session_state.all_scores = get_comments_sentiment(
-                st.session_state.comments
-            )
-            log_progress("Creating comparison table...", st.session_state.start_time)
-            if st.session_state.sport:
-                st.session_state.table = sports_table(st.session_state.all_scores, wwe)
-            else:
-                st.session_state.table = comparison_table(
-                    st.session_state.all_scores, st.session_state.movie_id, movies
-                )
-            st.session_state.first_analysis_complete = True
+                if st.session_state.tiktok is not None:
+                    st.session_state.comments = (
+                        st.session_state.comments + st.session_state.tiktok
+                    )
+            st.session_state.first_analysis = True
+            st.session_state.value = 1
+            st.session_state.devalue = -1
 
-    if st.session_state.get("first_analysis_complete", False):
-        st.header("Movie Sentiment and Emotion Analysis 🎈")
+    if (
+        st.session_state.value == 1
+        and st.session_state.devalue == -1
+        and st.session_state.first_analysis is True
+    ):
+        log_progress("Cleaning comments...", st.session_state.start_time)
+        st.session_state.comments = df_character_cleaning(
+            st.session_state.comments[
+                :1000
+            ]  ## NOT NEEDED WHEN WE DON'T FILTER FOR ENGLISH ONLY
+        )
+        log_progress("Calculating sentiment scores...", st.session_state.start_time)
+        st.session_state.all_scores = get_comments_sentiment(st.session_state.comments)
+        log_progress("Creating comparison table...", st.session_state.start_time)
+        if st.session_state.sport:
+            st.session_state.table = sports_table(st.session_state.all_scores, wwe)
+        else:
+            st.session_state.table = comparison_table(
+                st.session_state.all_scores, st.session_state.movie_id, movies
+            )
+        content = "Video" if st.session_state.sport else "Movie"
+        st.header(f"{content} Sentiment and Emotion Analysis 🎈")
         st.subheader("Sentiment Analysis")
         col1, col2 = st.columns(2, vertical_alignment="center")
         col1.dataframe(
@@ -203,7 +208,7 @@ def prod_page():
             display_selected_topic(st.session_state.resp_list, comments_topics_df)
         log_progress("Suggesting marketing actions...", st.session_state.start_time)
         if st.session_state.sport:
-            st.session_state.marketing_actions = sports_marketing_process(
+            st.session_state.marketing_actions = simple_sport(
                 filter_topics(comments_topics_df),
                 st.session_state.goal,
             )

@@ -1,33 +1,9 @@
 import streamlit as st
 import pandas as pd
-import os
 from functools import partial
 import concurrent.futures
-import random
-
-# os.environ["TOKENIZERS_PARALLELISM"] = "false"
-# st.set_page_config(page_title="SocialSense by Jumpcut", layout="wide")
 import time
-from processing import (
-    generate_comments,
-    df_character_cleaning,
-    get_comments_sentiment,
-    comparison_table,
-    create_entities_df,
-    create_movie_info,
-    match_topics_comments,
-)
-from config import movies, wwe
 import re
-from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
-from sport import (
-    sports_table,
-    summarize_sports,
-    sports_marketing_process,
-    topic_attribution_sports,
-    sports_goals,
-)
-from agentic import marketing_process, goals
 from topic_summarization import comments_summarizer, Claude, ChatGPT
 
 

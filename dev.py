@@ -118,19 +118,24 @@ def dev_page():
                         st.secrets["YT_KEY"],
                         max_comments=1_000,
                     )
-            if st.session_state.tiktok is not None:
-                st.session_state.comments = (
-                    st.session_state.comments + st.session_state.tiktok
-                )
-            log_progress("Cleaning comments...", st.session_state.start_time)
-            st.session_state.comments = df_character_cleaning(
-                st.session_state.comments[
-                    :1000
-                ]  ## NOT NEEDED WHEN WE DON'T FILTER FOR ENGLISH ONLY
-            )
-            st.session_state.first_analysis_complete = True
+                if st.session_state.tiktok is not None:
+                    st.session_state.comments += st.session_state.tiktok
+            st.session_state.first_analysis = True
+            st.session_state.value = 1
+            st.session_state.devalue = 1
 
-    if st.session_state.get("first_analysis_complete", False):
+    if (
+        st.session_state.value == 1
+        and st.session_state.devalue == 1
+        and st.session_state.first_analysis is True
+    ):
+        log_progress("Cleaning comments...", st.session_state.start_time)
+        st.session_state.comments = df_character_cleaning(
+            st.session_state.comments[
+                :1000
+            ]  ## NOT NEEDED WHEN WE DON'T FILTER FOR ENGLISH ONLY
+        )
+
         st.write("Number of comments processed:", len(st.session_state.comments))
         if st.session_state.tiktok is not None:
             st.write("Preview of tiktok comments:")
