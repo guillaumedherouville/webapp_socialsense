@@ -83,12 +83,13 @@ def process_comments_in_batches(comments, summary, _match_fctn, batch_size=50):
     return df
 
 
-def display_summary(resp_list):
-    st.markdown("#### Aspects of the trailer/film that commenters like:")
+def display_summary(resp_list, sport):
+    content = "trailer/film" if sport == False else "clip/video"
+    st.markdown(f"#### Aspects of the {content} that commenters like:")
     likes = "".join([f"{item}\n" for item in resp_list[:5]])
     st.markdown(likes)
 
-    st.markdown("#### Aspects of the trailer/film that commenters dislike:")
+    st.markdown(f"#### Aspects of the {content} that commenters dislike:")
     dislikes = "".join([f"{item}\n" for item in resp_list[5:10]])
     st.markdown(dislikes)
 
@@ -335,7 +336,7 @@ def main():
             st.session_state.resp_list = summarize_comments(
                 st.session_state.comments, st.session_state.movie_info_str
             )
-        display_summary(st.session_state.resp_list)
+        display_summary(st.session_state.resp_list, st.session_state.sport)
         log_progress("Matching comments to topics...", st.session_state.start_time)
         comments_topics_df = process_comments_in_batches(
             st.session_state.comments,
