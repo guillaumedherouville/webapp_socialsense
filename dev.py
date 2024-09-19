@@ -5,32 +5,32 @@ import time
 from processing import (
     generate_comments,
     df_character_cleaning,
-    get_comments_sentiment,
-    comparison_table,
     create_entities_df,
     create_movie_info,
     match_topics_comments,
 )
-from config import movies, wwe
-from visualization import sentiment_viz, emotion_viz, display_comments_by_topic
 from sport import (
-    sports_table,
     summarize_sports,
-    sports_marketing_process,
-    topic_attribution_sports,
     sports_goals,
 )
-from agentic import marketing_process, goals
+from agentic import goals
 from app import (
     extract_youtube_id,
     extract_imdb_id,
     log_progress,
-    summarize_comments,
-    process_comments_in_batches,
     display_summary,
-    display_selected_topic,
-    filter_topics,
+    process_comments_in_batches,
 )
+from topic_summarization import comments_summarizer, Claude, ChatGPT, comment_averaging
+from visualization import display_comments_by_topic
+from app import display_selected_topic
+
+
+@st.cache_data(show_spinner=False)
+def summarize_comments(df, movie_info_str):
+    all_resp = comment_averaging(df, movie_info_str, Claude)
+    resp_list = [item for item in all_resp.splitlines() if item]
+    return resp_list
 
 
 def dev_page():
