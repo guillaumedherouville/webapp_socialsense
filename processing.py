@@ -18,12 +18,10 @@ import time
 import openai
 import html
 import json
-import ast
 import streamlit as st
 
 nltk.download("stopwords")
 nltk.download("vader_lexicon")
-# load_dotenv()
 encoding = tiktoken.encoding_for_model("gpt-4o")
 
 classifier_1 = pipeline(
@@ -59,6 +57,7 @@ def get_video_comments(service, max_comments=None, **kwargs):
     return comments
 
 
+@st.cache_data(show_spinner=False)
 def generate_comments(video_id, key, max_comments=1000):
     api_key = key
     http = httplib2.Http()
@@ -93,9 +92,11 @@ def remove_emojis_and_apostrophes(text):
         .replace("</i>", "")
         .replace("</b>", "")
     )
+    text = text[:1000]
     return text
 
 
+@st.cache_data(show_spinner=False)
 def df_character_cleaning(comments_t):
     comments_t = [remove_emojis_and_apostrophes(comment) for comment in comments_t]
     return comments_t
@@ -108,6 +109,7 @@ def get_classifiers_output(comment):
     return a, b
 
 
+@st.cache_data(show_spinner=False)
 def get_comments_sentiment(comments):
     with ThreadPoolExecutor() as executor:
         results = list(executor.map(get_classifiers_output, comments))
@@ -120,6 +122,7 @@ def get_comments_sentiment(comments):
     return all_scores
 
 
+@st.cache_data(show_spinner=False)
 def comparison_table(all_scores, movie_id, movies):
     overall_sentiment = np.mean(np.array(all_scores).reshape(-1, 9), axis=0).tolist()
     overall_sentiment_df = pd.DataFrame(overall_sentiment)
