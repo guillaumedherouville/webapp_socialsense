@@ -22,7 +22,6 @@ confection==0.1.5
 contourpy==1.1.1
 cycler==0.12.1
 cymem==2.0.8
-distutils
 dnspython==2.6.1
 email_validator==2.2.0
 emoji==2.12.1
