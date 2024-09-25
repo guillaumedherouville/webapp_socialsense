@@ -74,17 +74,23 @@ def display_selected_topic(summary, comments_topics_df):
     topic = st.selectbox(
         "Select a topic for comments breakdown", summary, label_visibility="collapsed"
     )
+    # csv_data = comments_topics_df.to_csv(index=False)
+    # st.download_button(
+    #     label="Download data as CSV",
+    #     data=csv_data,
+    #     file_name="comments_data.csv",
+    # )
     if topic:
         i = int(summary.index(topic))
         temp = comments_topics_df.set_index("0")
-        john = temp[temp.iloc[:, i] == 1]
+        john = temp[temp.iloc[:, i] != 0]
         john = john.reset_index()
         if len(john) == 0:
             st.write("No comment found matching this topic")
         else:
             with st.container(height=300, border=True):
-                for idx, row in john.iterrows():
-                    st.write(row[0])
+                comment_block = "\n\n".join(john.iloc[:, 0].values)
+                st.markdown(comment_block)
 
 
 def filter_topics(comments_topics_df):

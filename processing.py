@@ -92,6 +92,7 @@ def remove_emojis_and_apostrophes(text):
         .replace("</i>", "")
         .replace("</b>", "")
     )
+    text = text[:1000]
     return text
 
 

@@ -1,6 +1,12 @@
 import openai
 from textwrap import dedent
 import anthropic
+import json
+import concurrent.futures
+from functools import partial
+import pandas as pd
+import streamlit as st
+import ast
 
 
 class Claude:
@@ -76,14 +82,292 @@ def comments_summarizer(comments, context, provider, model=None):
     chat.add_user_message(dedent(summarize_prompt))
     _ = chat.get_response()
     chat.add_user_message(
-        "Thank you for your response. Now, I would like you to reformat it, such that the output matches EXACTLY the example format. That is, list the 10 topics as shown and delete everything else. Remember, this is pure reformatting and it is essential you match the desired output."
+        "Thank you for your response. Now, I would like you to reformat it, such that the output matches EXACTLY the example format. That is, list the 10 topics as shown and delete everything else. Do not include any other text."
     )
     topics_list = chat.get_response()
-    print(topics_list)
     return topics_list
 
 
-def comment_averaging(comments, context, provider, model=None):
+@st.cache_data(show_spinner=False)
+def process_comments_in_batches(comments, summary, _match_fctn, batch_size=50):
+    batches = []
+    for i in range(0, len(comments), batch_size):
+        batches.append(comments[i : i + batch_size])
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(executor.map(partial(_match_fctn, all_resp=summary), batches))
+    flattened_result = [
+        item for sublist in results if sublist is not None for item in sublist
+    ]
+    df = pd.DataFrame(flattened_result)
+    return df
+
+
+def match_topics_comments(text, all_resp):
+    print("matching in progress")
+    topic_analysis_prompt = f"""The following statements represent general expressed themes associated with a set of movie trailer comments \n {all_resp} \n
+  You will be given a set of comments concerning the same movie trailer. For each comment, I would like you
+  to ouput the original, unedited comment, along with indicators for each comment topic. If the comment relates to the topic,
+  you will assign it a 1, otherwise you will assign it a 0. You will output this as a list in JSON format. 
+
+  For example, consider these 3 positive and 2 negative topics concerning the trailer for The Social Network:
+  1. Overwhelming admiration for the quality of the film and trailer with regards to storytelling, presentation and overall execution. 
+  2. Great appreciation for Director David Finchers directing prowess and his depiction of Facebooks rise, resonating with societal themes. 
+  3. Highly appreciated performances from the cast, with special mentions of actors such as Andrew Garfield and Jesse Eisenberg.
+  
+  4. Viewer disapproval of Facebook as a platform and its societal impact, potentially skewing their perception of the film negatively. 
+  5. Criticisms on historical inaccuracy in the portrayal of Facebooks inception and portrayal of Mark Zuckerberg. 
+  
+  And these comments:
+  I hate Facebook and I love this movie 
+  I always come back to this movie. Theres nothing like it. Every time I re watch it, theres always something I noice that I didnt the last time. Its art. And the way its created is perfect. 
+  A special movie dedicated to founders of the Facebook and what did went inside their friendship through the process of creating the worlds dominant mass reaching communication forum. Acted perfectly by Andrew and Jesse its a definite watch for audiences across the world. 
+  just rewatched the film last night - even if its not 100% accurate, its a masterpiece of filmmaking, sound design, cinematography. 
+  Lex Luthor created Facebook. 
+  A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up. 
+  He's smart, but I don't trust him. 
+
+
+  The output would be:
+    {
+    [
+    {
+  "0" : "I hate Facebook and I love this movie",
+  "1" : 1,
+  "2" : 0,
+  "3" : 0,
+  "4" : 1,
+  "5" : 0
+    },
+    {
+  "0" : "I always come back to this movie. Theres nothing like it. Every time I re watch it, theres always something I noice that I didnt the last time. Its art. And the way its created is perfect.",
+  "1" : 1,
+  "2" : 0,
+  "3" : 0,
+  "4" : 0,
+  "5" : 0
+    },
+    {
+  "0" : "A special movie dedicated to founders of the Facebook and what did went inside their friendship through the process of creating the worlds dominant mass reaching communication forum. Acted perfectly by Andrew and Jesse its a definite watch for audiences across the world.",
+  "1" : 1,
+  "2" : 0,
+  "3" : 1,
+  "4" : 0,
+  "5" : 0
+    },
+    {
+  "0" : "just rewatched the film last night - even if its not 100% accurate, its a masterpiece of filmmaking, sound design, cinematography.",
+  "1" : 1,
+  "2" : 0,
+  "3" : 0,
+  "4" : 0,
+  "5" : 1
+    },
+    {
+  "0" : "Lex Luthor created Facebook.",
+  "1" : 0,
+  "2" : 0,
+  "3" : 0,
+  "4" : 0,
+  "5" : 0
+    },
+    {
+  "0" : "A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up.",
+  "1" : 1,
+  "2" : 1,
+  "3" : 0,
+  "4" : 0,
+  "5" : 1
+
+    },
+    {
+  "0" : "He's smart, but I don't trust him.",
+  "1" : 0,
+  "2" : 0,
+  "3" : 0,
+  "4" : 0,
+  "5" : 0
+    }
+    ]
+    }, where 0 is attributed to the comment, 1 is attributed to the first theme, 2 to the second theme, 3 to the third, etc. 
+    
+    Note that the topics you will be given can be positive or negative, and will be 10 in total. This example is for illustrative purposes only. 
+
+    Only classify the comment if it directly relates to the respective theme; some comments may not belong to any topic, in which case you will generate 0 for each value of the key-value pairs.
+
+    For example, the comments 'Lex Luthor created Facebook' and 'He's smart, but I don't trust him' are both related to the trailer, but are not specific enough to fit in any category.
+
+    Additionally, although the comment 'A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up.' mentions the praise for the acting, the comment itself is not praiseworth, so it is not attributed to the
+    topic 'Highly appreciated performances from the cast, with special mentions of actors such as Andrew Garfield and Jesse Eisenberg'.
+
+Please output in the same format for these comments {text} and the provided themes: {all_resp}. DO NOT output any other text other than the information specified and DO NOT use space brackets '()' or apostrophes like '. Please generate the full comment. It is extremely important that you fully follow these instructions:
+"""
+    try:
+        chat = ChatGPT(
+            system_message=f"""You are an expert comment analyzer who outputs in JSON format. You are not allowed to use any apostrophes (') in your generation. Simply use double quotes("") 
+                                    instead; only use single-quotes ('') inside double-quotes if necessary, never use double-quotes within double-quotes. 
+                                    You will be prompted with many comments; please perform the analsys for every single comment, do not skip any even though it may be computationally expensive. 
+                                    Please generate the entire comment in your analysis, and only classify the comment if it directly relates to the respective theme, this is extremely important!"""
+        )
+        chat.add_user_message(topic_analysis_prompt)
+        summarized_chunk = chat.get_response()
+        try:
+            summarized_chunk = json.loads(summarized_chunk)
+            print("matching done")
+            return summarized_chunk
+        except Exception as e:
+            try:
+                chat.add_user_message(
+                    f"There is an issue with your reply. Here is the error: {e}. Please correct your answer and output the correct json, without any parasite text:"
+                )
+                summarized_chunk = chat.get_response()
+                summarized_chunk = json.loads(summarized_chunk)
+                print(f"matching done on second try (error was {e})")
+                return summarized_chunk
+            except Exception as e:
+                print(f"Error during json: {e}")
+                print(summarized_chunk)
+                return
+    except Exception as e:
+        print(f"Error during matching: {e}")
+        return None
+
+
+# @st.cache_data(show_spinner=False)
+# def process_comments_in_batches(comments, summary, _match_fctn, batch_size=50):
+#     batches = []
+#     for i in range(0, len(comments), batch_size):
+#         batches.append(comments[i : i + batch_size])
+#     with concurrent.futures.ThreadPoolExecutor() as executor:
+#         results = list(executor.map(partial(_match_fctn, all_resp=summary), batches))
+#     flattened_result = [
+#         item for sublist in results if sublist is not None for item in sublist
+#     ]
+#     df = pd.DataFrame(flattened_result)
+#     return df
+
+
+@st.cache_data(show_spinner=False)
+def process_check(df_matched, movie_info_str, summary):
+    df = df_matched.copy()
+    for i in range(len(df.columns) - 1):
+        temp = df[df.iloc[:, i + 1] != 0]
+        print(summary[i])
+        check = check_matching(
+            temp["0"].to_list(),
+            summary[i],
+            movie_info_str,
+            positive=True if i < 5 else False,
+        )
+        print(f"check : {len(check)} vs comms : {len(temp)}")
+        if len(check) == len(temp):
+            check_series = pd.Series(check, index=temp.index)
+            df.loc[temp.index, df.columns[i + 1]] = check_series
+            comments_gone = temp.loc[check_series == 0, "0"].to_list()
+            print(f"Removed:\n{comments_gone}")
+    return df
+
+
+def check_matching(text, theme, context, positive=True):
+    comments = "\n".join(text)
+    positive = "positive" if positive else "negative"
+    topic_analysis_prompt = f"""
+Your goal is to check whether comments from a list are appropriately matched to a provided theme.
+For each comment, you should check whether it is confirming the insight expressed in the theme. It is very important that you watch for false positives, i.e. for comments which are contradicting the topic.
+Your output will be a list of 0 and 1, where 1 indicates that the comment is correctly matched to the theme, and 0 indicates that it is not.
+If all comments are related, you should output a list of 1s.
+Please return the list and nothing else.
+Here is some context about the movie : 
+{context}
+### Comments ###
+{comments} 
+### END ###
+The theme is : {theme}. Note that it is a {positive} theme.
+Your list should have a length equal to the number of comments (i.e. {len(text)}), and each element should be either 0 or 1.
+"""
+    try:
+        chat = ChatGPT(
+            system_message=f"""You are an expert comment analyzer who outputs in list format. You work as an analyst for a movie production company"""
+        )
+        chat.add_user_message(topic_analysis_prompt)
+        check = chat.get_response()
+        check = ast.literal_eval(check)
+        return check
+    except Exception as e:
+        print(f"Error during check: {e}")
+        print(check)
+        return None
+
+
+def top_five(df_matched, movie_info_str, summary):
+    df = df_matched.copy()
+    print(df.columns)
+    print(range(len(df.columns)))
+    for i in range(len(df.columns) - 1):
+        temp = df[df.iloc[:, i + 1] != 0]
+        print(summary[i])
+        check = check_matching(
+            temp["0"].to_list(),
+            summary[i],
+            movie_info_str,
+            positive=True if i < 5 else False,
+        )
+        if len(check) == len(temp):
+            check_series = pd.Series(check, index=temp.index)
+            df.loc[temp.index, df.columns[i + 1]] = check_series
+            comments_gone = temp.loc[check_series == 0, "0"].to_list()
+            print(f"For topic {summary[i]},\nwe have removed:\n{comments_gone}")
+    return df
+
+
+@st.cache_data(show_spinner=False)
+def comments_with_arbitrage(df, movie_info_str):
+    all_resp = []
+    for i in range(5):
+        all_resp.append(comments_summarizer(df, movie_info_str, Claude))
+    final_list = comment_voting(df, all_resp, movie_info_str, Claude)
+    resp_list = [item for item in final_list.splitlines() if item]
+    return resp_list
+
+
+def comment_voting(comments, lists, context, provider, model=None):
+    system_message = "You are an expert social media analyst for a production company."
+    topics = "\n".join(
+        [
+            ", ".join(sublist) if isinstance(sublist, list) else sublist
+            for sublist in lists
+        ]
+    )
+    chat = (
+        provider(model=model, system_message=system_message)
+        if model
+        else provider(system_message=system_message)
+    )
+    positive_prompt = f"""
+You will be given five lists of positive and negative topics curated from comments made by internet users about a movie trailer. 
+Your job is to select the most relevant of the 5 lists, which will be used as insight to improve future products. You need to choose the list which represents the most faithfully the comments shown. 
+Here is general information about the movie :
+{context}
+Here are the comments : 
+{comments} 
+And here are the candidate lists of topics : 
+{topics} 
+\nPlease return the best list, which is the one most representative of the comments provided. Note: you should not modify the list, only select the most relevant one."""
+    chat.add_user_message(positive_prompt)
+    temp = chat.get_response()
+    print(positive_prompt)
+    print(temp)
+    chat.add_user_message(
+        "Thank you for your response. Now, I would like you to reformat it, such that the output matches the initial list format: list 10 topics using numbers and delete everything else. Remember, this is pure reformatting and it is essential you match the desired output."
+    )
+    answer = chat.get_response()
+    print(answer)
+    return answer
+
+
+@st.cache_data(show_spinner=False)
+def comment_averaging(
+    comments, context, provider, model=None
+):  ### TERRIBLE IDEA SINCE IT CREATES COMPLEX AND NOT STRAITFORWARD OUTPUT
     positive_init = []
     negative_init = []
     for i in range(5):
@@ -139,26 +423,3 @@ def comment_averaging(comments, context, provider, model=None):
     negative_list = chat.get_response()
     all_topics = positive_list + "\n" + negative_list
     return all_topics
-
-
-def comment_voting(comments, context, provider, model=None):
-    topics = comments_summarizer(comments, context, provider, model)
-    system_message = (
-        "You are an expert text summarizer and analyzer for a production company."
-    )
-    chat = (
-        provider(model=model, system_message=system_message)
-        if model
-        else provider(system_message=system_message)
-    )
-    summarize_prompt = f"""You will be given lists comments regarding a movie trailer, concerning a movie with this information: \n {context} \n. \
-                        Fi
-                        \n### TEXT\n{text}\n\n### BEGIN RESPONSE\n"""
-    chat.add_user_message(dedent(summarize_prompt))
-    topics = chat.get_response()
-    print(topics)
-    chat.add_user_message(
-        "Thank you for your response. Now, I would like you to reformat it, such that the output matches EXACTLY the example format. That is, list the 10 topics as shown and delete everything else. Remember, this is pure reformatting and it is essential you match the desired output."
-    )
-    topics_list = chat.get_response()
-    return topics_list

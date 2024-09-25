@@ -7,7 +7,7 @@ from processing import (
     df_character_cleaning,
     create_entities_df,
     create_movie_info,
-    match_topics_comments,
+    #  match_topics_comments,
 )
 from sport import (
     summarize_sports,
@@ -19,16 +19,25 @@ from app import (
     extract_imdb_id,
     log_progress,
     display_summary,
-    process_comments_in_batches,
+    #  process_comments_in_batches,
 )
-from topic_summarization import comments_summarizer, Claude, ChatGPT, comment_averaging
+from topic_summarization import (
+    comments_summarizer,
+    Claude,
+    ChatGPT,
+    comment_averaging,
+    match_topics_comments,
+    process_comments_in_batches,
+    comments_with_arbitrage,
+    process_check,
+)
 from visualization import display_comments_by_topic
 from app import display_selected_topic
 
 
 @st.cache_data(show_spinner=False)
 def summarize_comments(df, movie_info_str):
-    all_resp = comment_averaging(df, movie_info_str, Claude)
+    all_resp = comments_summarizer(df, movie_info_str, Claude)
     resp_list = [item for item in all_resp.splitlines() if item]
     return resp_list
 
@@ -158,7 +167,7 @@ def dev_page():
             )
             st.markdown("Context")
             st.write(st.session_state.movie_info_str)
-            st.session_state.resp_list = summarize_comments(
+            st.session_state.resp_list = comments_with_arbitrage(
                 st.session_state.comments, st.session_state.movie_info_str
             )
         display_summary(st.session_state.resp_list, st.session_state.sport)
@@ -172,6 +181,11 @@ def dev_page():
                 else topic_attribution_sports
             ),
             batch_size=min(len(st.session_state.comments) // 10, 50),
+        )
+        comments_topics_df = process_check(
+            comments_topics_df,
+            st.session_state.movie_info_str,
+            st.session_state.resp_list,
         )
         st.subheader("Breakdown of comments by topic 📍")
         col1, col2 = st.columns(2, vertical_alignment="center")

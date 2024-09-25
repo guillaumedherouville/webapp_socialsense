@@ -102,11 +102,12 @@ def emotion_viz(overall_sentiment_df):
 
 
 def display_comments_by_topic(df):
-    temp = df.fillna(0)
-    # Sum the counts across rows to get total counts for each topic
-    df_counts = temp.sum(axis=0).reset_index()
+    temp = df.copy()
+    numeric_temp = temp.drop(columns=["0"]).apply(pd.to_numeric, errors="coerce")
+    numeric_temp.fillna(0, inplace=True)
+    binary_counts = (numeric_temp > 0).astype(int)
+    df_counts = binary_counts.sum(axis=0).reset_index()
     df_counts.columns = ["Topic", "Count"]
-
     # Ensure all possible topics (1-10) are included by filling in missing topics with a count of 0
     all_topics = [str(i) for i in range(1, 11)]  # Topics numbered 1-10 as strings
     df_counts = df_counts.set_index("Topic")
