@@ -156,6 +156,7 @@ watchdog==4.0.1
 watchfiles==0.22.0
 weasel==0.4.1
 websockets==12.0
+wheel==0.44.0
 Werkzeug==3.0.3
 wrapt==1.16.0
 yarl==1.9.4
