@@ -165,8 +165,8 @@ def dev_page():
             st.session_state.movie_info_str = create_movie_info(
                 st.session_state.movie_id, st.session_state.entities_df
             )
-            st.markdown("Context")
-            st.write(st.session_state.movie_info_str)
+            # st.markdown("Context")
+            # st.write(st.session_state.movie_info_str)
             st.session_state.resp_list = comments_with_arbitrage(
                 st.session_state.comments, st.session_state.movie_info_str
             )

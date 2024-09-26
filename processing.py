@@ -38,13 +38,56 @@ classifier_2 = pipeline(
 )
 tokenizer_kwargs = {"padding": True, "truncation": True, "max_length": 500}
 
+# def get_video_comments(service, max_comments=None, **kwargs):
+#     comments = []
+#     results = service.commentThreads().list(**kwargs).execute()
+#     while results:
+#         for item in results["items"]:
+#             comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+#             comments.append(comment)
+#             if max_comments and len(comments) >= max_comments:
+#                 return comments
+#         if "nextPageToken" in results and (
+#             not max_comments or len(comments) < max_comments
+#         ):
+#             kwargs["pageToken"] = results["nextPageToken"]
+#             results = service.commentThreads().list(**kwargs).execute()
+#         else:
+#             break
+#     return comments
+
+
+# @st.cache_data(show_spinner=False)
+# def generate_comments(video_id, key, max_comments=1000):
+#     api_key = key
+#     http = httplib2.Http()
+#     service_name = "youtube"
+#     version = "v3"
+#     discovery_url = (
+#         f"https://www.googleapis.com/discovery/v1/apis/{service_name}/{version}/rest"
+#     )
+#     discovery_http = http.request(discovery_url)[1]
+#     youtube_service = build_from_document(discovery_http, developerKey=api_key)
+
+#     kwargs = {
+#         "part": "snippet",
+#         "videoId": video_id,
+#         "maxResults": 100,  # Keep this at 100 for efficiency
+#     }
+
+#     return get_video_comments(youtube_service, max_comments=max_comments, **kwargs)
+
 
 def get_video_comments(service, max_comments=None, **kwargs):
     comments = []
     results = service.commentThreads().list(**kwargs).execute()
     while results:
         for item in results["items"]:
-            comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+            snippet = item["snippet"]["topLevelComment"]["snippet"]
+            comment = {
+                "text": snippet["textDisplay"],
+                "likeCount": snippet["likeCount"],
+            }
             comments.append(comment)
             if max_comments and len(comments) >= max_comments:
                 return comments
@@ -59,7 +102,7 @@ def get_video_comments(service, max_comments=None, **kwargs):
 
 
 @st.cache_data(show_spinner=False)
-def generate_comments(video_id, key, max_comments=1000):
+def generate_comments(video_id, key, max_comments=3_000):
     api_key = key
     http = httplib2.Http()
     service_name = "youtube"
@@ -69,14 +112,15 @@ def generate_comments(video_id, key, max_comments=1000):
     )
     discovery_http = http.request(discovery_url)[1]
     youtube_service = build_from_document(discovery_http, developerKey=api_key)
-
     kwargs = {
         "part": "snippet",
         "videoId": video_id,
         "maxResults": 100,  # Keep this at 100 for efficiency
     }
-
-    return get_video_comments(youtube_service, max_comments=max_comments, **kwargs)
+    comments = get_video_comments(youtube_service, max_comments=max_comments, **kwargs)
+    sorted_comments = sorted(comments, key=lambda x: x["likeCount"], reverse=True)
+    top_comments_text = [comment["text"] for comment in sorted_comments[:1000]]
+    return top_comments_text
 
 
 def remove_emojis_and_apostrophes(text):

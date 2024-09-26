@@ -251,24 +251,47 @@ Please generate the entire comment in your analysis, and only classify the comme
 #     return df
 
 
+# @st.cache_data(show_spinner=False)
+# def process_check(df_matched, movie_info_str, summary):
+#     df = df_matched.copy()
+#     for i in range(len(df.columns) - 1):
+#         temp = df[df.iloc[:, i + 1] != 0]
+#         print(summary[i])
+#         check = check_matching(
+#             temp["0"].to_list(),
+#             summary[i],
+#             movie_info_str,
+#             positive=True if i < 5 else False,
+#         )
+#         print(f"check : {len(check)} vs comms : {len(temp)}")
+#         if len(check) == len(temp):
+#             check_series = pd.Series(check, index=temp.index)
+#             df.loc[temp.index, df.columns[i + 1]] = check_series
+#             comments_gone = temp.loc[check_series == 0, "0"].to_list()
+#             print(f"Removed:\n{comments_gone}")
+#     return df
+
+
 @st.cache_data(show_spinner=False)
 def process_check(df_matched, movie_info_str, summary):
     df = df_matched.copy()
     for i in range(len(df.columns) - 1):
-        temp = df[df.iloc[:, i + 1] != 0]
+        temp = df[df.iloc[:, i + 1] != 0].copy()
         print(summary[i])
-        check = check_matching(
-            temp["0"].to_list(),
-            summary[i],
-            movie_info_str,
-            positive=True if i < 5 else False,
-        )
-        print(f"check : {len(check)} vs comms : {len(temp)}")
-        if len(check) == len(temp):
-            check_series = pd.Series(check, index=temp.index)
-            df.loc[temp.index, df.columns[i + 1]] = check_series
-            comments_gone = temp.loc[check_series == 0, "0"].to_list()
-            print(f"Removed:\n{comments_gone}")
+        for start_idx in range(0, len(temp), 30):
+            temp_batch = temp.iloc[start_idx : start_idx + 30]
+            check = check_matching(
+                temp_batch["0"].to_list(),
+                summary[i],
+                movie_info_str,
+                positive=True if i < 5 else False,
+            )
+            print(f"check : {len(check)} vs comms : {len(temp_batch)}")
+            if len(check) == len(temp_batch):
+                check_series = pd.Series(check, index=temp_batch.index)
+                df.loc[temp_batch.index, df.columns[i + 1]] = check_series
+                comments_gone = temp_batch.loc[check_series == 0, "0"].to_list()
+                print(f"Removed:\n{comments_gone}")
     return df
 
 
@@ -359,13 +382,10 @@ And here are the candidate lists of topics :
 \nPlease return the best list, which is the one most representative of the comments provided. Note: you should not modify the list, only select the most relevant one."""
     chat.add_user_message(positive_prompt)
     temp = chat.get_response()
-    print(positive_prompt)
-    print(temp)
     chat.add_user_message(
         "Thank you for your response. Now, I would like you to reformat it, such that the output matches the initial list format: list 10 topics using numbers and delete everything else. Remember, this is pure reformatting and it is essential you match the desired output."
     )
     answer = chat.get_response()
-    print(answer)
     return answer
 
 
