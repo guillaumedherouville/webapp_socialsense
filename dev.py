@@ -147,7 +147,7 @@ def dev_page():
 
         st.write("Number of comments processed:", len(st.session_state.comments))
         if st.session_state.tiktok is not None:
-            st.write("Preview of tiktok comments:")
+            st.write("Preview of csv comments:")
             st.table(st.session_state.tiktok[:10])
         st.header("Advanced Topic Analysis 🔎")
         log_progress("Generating summary...", st.session_state.start_time)
@@ -174,6 +174,7 @@ def dev_page():
         log_progress("Matching comments to topics...", st.session_state.start_time)
         comments_topics_df = process_comments_in_batches(
             st.session_state.comments,
+            st.session_state.movie_info_str,
             st.session_state.resp_list,
             (
                 match_topics_comments

@@ -4,7 +4,7 @@ Streamlit webapp for SocialSense product
 
 ### Important
 
-When creating the streamlit app, specify python version = 3.10 (in advanced settings)
+When creating the streamlit app, specify python version = 3.10 (in advanced settings)  
 Todo : clean requirements.txt (very heavy atm with unnecessary libraries)
 
 #### Files
@@ -26,5 +26,17 @@ excel file (marketing tactics...) is an old excel intended to help with promptin
 #### Branches
 
 main is for the public streamlit  
-test_dev has the old streamlit (when app.py was the main file)
+test_dev has the old streamlit (when app.py was the main file)  
 devenv is for modifications before pushing to main
+
+### State of progress
+
+In prod, the following has been implemented :
+
+- Topic matching fixed (i.e. the match_topic_comments function in processing.py is the same as in topic_summarization.py)
+- Showing neutral comments (NB : realized we currently show a general view of sentiments over all comments, not proportion of neutral vs negative vs positive)
+
+In dev, the following is in progress :
+
+- Using Claude instead of ChatGPT (in topic_summarization.py, both classes can be used indifferently in the functions // double check that Claude is compliant tho)
+- A 'check' function (in topic_summarization.py) which is here to limit false positives when matching comments to topic, by verifying no comment is contradicting the topic it has been assigned to

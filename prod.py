@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import random
+import numpy as np
 
 import time
 from processing import (
@@ -140,7 +141,9 @@ def prod_page():
             ]  ## NOT NEEDED WHEN WE DON'T FILTER FOR ENGLISH ONLY
         )
         log_progress("Calculating sentiment scores...", st.session_state.start_time)
-        st.session_state.all_scores = get_comments_sentiment(st.session_state.comments)
+        st.session_state.all_scores, proper_scores = get_comments_sentiment(
+            st.session_state.comments
+        )
         log_progress("Creating comparison table...", st.session_state.start_time)
         if st.session_state.sport:
             st.session_state.table = sports_table(st.session_state.all_scores, wwe)
@@ -149,6 +152,7 @@ def prod_page():
                 st.session_state.all_scores, st.session_state.movie_id, movies
             )
         content = "Video" if st.session_state.sport else "Movie"
+        st.write("Number of comments processed:", len(st.session_state.comments))
         st.header(f"{content} Sentiment and Emotion Analysis 🎈")
         st.subheader("Sentiment Analysis")
         col1, col2 = st.columns(2, vertical_alignment="center")
@@ -168,7 +172,16 @@ def prod_page():
         )
         with col2:
             emotion_viz(st.session_state.table)
-
+        if st.session_state.tiktok is not None:
+            st.write("Preview of csv comments:")
+            st.table(st.session_state.tiktok[:10])
+        proper_scores = np.array(proper_scores)
+        neutral_comments = []
+        for i, score in enumerate(proper_scores):
+            if np.argmax(score[:3]) == 1:
+                neutral_comments.append(st.session_state.comments[i])
+        st.write(len(neutral_comments), "neutral comments")
+        st.write(neutral_comments)
         st.header("Advanced Topic Analysis 🔎")
         log_progress("Generating summary...", st.session_state.start_time)
         if st.session_state.sport:
@@ -192,6 +205,7 @@ def prod_page():
         log_progress("Matching comments to topics...", st.session_state.start_time)
         comments_topics_df = process_comments_in_batches(
             st.session_state.comments,
+            st.session_state.movie_info_str,
             st.session_state.resp_list,
             (
                 match_topics_comments

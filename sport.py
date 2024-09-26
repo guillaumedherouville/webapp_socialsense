@@ -127,7 +127,7 @@ def summarize_sports(df, multi=False):
 
 
 def topic_attribution_sports(
-    text, all_resp
+    text, context, all_resp
 ):  ## https://www.youtube.com/watch?v=3fENMxQDo_A
     print("matching in progress")
     " \n".join(t for t in text)

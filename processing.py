@@ -19,6 +19,7 @@ import openai
 import html
 import json
 import streamlit as st
+from textwrap import dedent
 
 nltk.download("stopwords")
 nltk.download("vader_lexicon")
@@ -113,13 +114,30 @@ def get_classifiers_output(comment):
 def get_comments_sentiment(comments):
     with ThreadPoolExecutor() as executor:
         results = list(executor.map(get_classifiers_output, comments))
+    proper_scores = []
     all_scores = []
     for a, b in results:
+        comment_scores = []
         for l in range(3):
+            comment_scores.append(a[0][l]["score"])
             all_scores.append(a[0][l]["score"])
         for m in range(6):
+            comment_scores.append(b[0][m]["score"])
             all_scores.append(b[0][m]["score"])
-    return all_scores
+        proper_scores.append(comment_scores)
+    return all_scores, proper_scores
+
+
+# def get_comments_sentiment(comments):
+#     with ThreadPoolExecutor() as executor:
+#         results = list(executor.map(get_classifiers_output, comments))
+#     all_scores = []
+#     for a, b in results:
+#         for l in range(3):
+#             all_scores.append(a[0][l]["score"])
+#         for m in range(6):
+#             all_scores.append(b[0][m]["score"])
+#     return all_scores, all_scores
 
 
 @st.cache_data(show_spinner=False)
@@ -408,116 +426,134 @@ def split_comments(texts, max_tokens):
     return chunks
 
 
-def match_topics_comments(text, all_resp):
+def match_topics_comments(text, context, all_resp):
     print("matching in progress")
-    " \n".join(t for t in text)
-    topic_analysis_prompt = f"""The following statements represent general expressed themes associated with a set of movie trailer comments \n {all_resp} \n
-  You will be given a set of comments concerning the same movie trailer. For each comment, I would like you
-  to ouput the original, unedited comment, along with indicators for each comment topic. If the comment relates to the topic,
-  you will assign it a 1, otherwise you will assign it a 0. You will output this as a list in JSON format. 
+    all_resp = "".join([f"{item}\n" for item in all_resp])
+    topic_analysis_prompt = f"""
+You will be given a set of comments and related topics regarding a movie trailer. For each comment, I would like you to ouput the original, \
+unedited comment, along with indicators for each topic mentioned. If the comment relates to the topic, you will assign it a 1, \
+otherwise you will assign it a 0. You will output this as a list in JSON format. 
 
-  For example, consider these topics concerning the trailer for The Social Network:
-  1. Overwhelming admiration for the quality of the film and trailer with regards to storytelling, presentation and overall execution. 
-  2. Great appreciation for Director David Finchers directing prowess and his depiction of Facebooks rise, resonating with societal themes. 
-  3. Highly appreciated performances from the cast, with special mentions of actors such as Andrew Garfield and Jesse Eisenberg.
-  4. Viewer disapproval of Facebook as a platform and its societal impact, potentially skewing their perception of the film negatively. 
-  5. Criticisms on historical inaccuracy in the portrayal of Facebooks inception and portrayal of Mark Zuckerberg. 
+For example, consider these 3 positive and 2 negative topics concerning the trailer for The Social Network:
+1. Overwhelming admiration for the quality of the film and trailer with regards to storytelling, presentation and overall execution. 
+2. Great appreciation for Director David Finchers directing prowess and his depiction of Facebooks rise, resonating with societal themes. 
+3. Highly appreciated performances from the cast, with special mentions of actors such as Andrew Garfield and Jesse Eisenberg.
+4. Viewer disapproval of Facebook as a platform and its societal impact, potentially skewing their perception of the film negatively. 
+5. Criticisms on historical inaccuracy in the portrayal of Facebooks inception and portrayal of Mark Zuckerberg. 
 
-  And these comments:
-  I hate Facebook and I love this movie 
-  I always come back to this movie. Theres nothing like it. Every time I re watch it, theres always something I noice that I didnt the last time. Its art. And the way its created is perfect. 
-  A special movie dedicated to founders of the Facebook and what did went inside their friendship through the process of creating the worlds dominant mass reaching communication forum. Acted perfectly by Andrew and Jesse its a definite watch for audiences across the world. 
-  just rewatched the film last night - even if its not 100% accurate, its a masterpiece of filmmaking, sound design, cinematography. 
-  Lex Luthor created Facebook. 
-  A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up. 
-  He's smart, but I don't trust him. 
+And these comments:
+I hate Facebook and I love this movie 
+I always come back to this movie. Theres nothing like it. Every time I re watch it, theres always something I noice that I didnt the last time. Its art. And the way its created is perfect.
+A special movie dedicated to founders of the Facebook and what did went inside their friendship through the process of creating the worlds dominant mass reaching communication forum. Acted perfectly by Andrew and Jesse its a definite watch for audiences across the world. 
+just rewatched the film last night - even if its not 100% accurate, its a masterpiece of filmmaking, sound design, cinematography. 
+Lex Luthor created Facebook. 
+A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up. 
+He's smart, but I don't trust him. 
 
+The output would be:
+{
+[
+{
+"0" : "I hate Facebook and I love this movie",
+"1" : 1,
+"2" : 0,
+"3" : 0,
+"4" : 1,
+"5" : 0
+},
+{
+"0" : "I always come back to this movie. Theres nothing like it. Every time I re watch it, theres always something I noice that I didnt the last time. Its art. And the way its created is perfect.",
+"1" : 1,
+"2" : 0,
+"3" : 0,
+"4" : 0,
+"5" : 0
+},
+{
+"0" : "A special movie dedicated to founders of the Facebook and what did went inside their friendship through the process of creating the worlds dominant mass reaching communication forum. Acted perfectly by Andrew and Jesse its a definite watch for audiences across the world.",
+"1" : 1,
+"2" : 0,
+"3" : 1,
+"4" : 0,
+"5" : 0
+},
+{
+"0" : "just rewatched the film last night - even if its not 100% accurate, its a masterpiece of filmmaking, sound design, cinematography.",
+"1" : 1,
+"2" : 0,
+"3" : 0,
+"4" : 0,
+"5" : 1
+},
+{
+"0" : "Lex Luthor created Facebook.",
+"1" : 0,
+"2" : 0,
+"3" : 0,
+"4" : 0,
+"5" : 0
+},
+{
+"0" : "A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up.",
+"1" : 1,
+"2" : 1,
+"3" : 0,
+"4" : 0,
+"5" : 1
 
-  The output would be:
-    {
-    [
-    {
-  0 : "I hate Facebook and I love this movie",
-  1 : 1,
-  2 : 0,
-  3 : 0,
-  4 : 1,
-  5 : 0
-    },
-    {
-  0 : "I always come back to this movie. Theres nothing like it. Every time I re watch it, theres always something I noice that I didnt the last time. Its art. And the way its created is perfect.",
-  1 : 1,
-  2 : 0,
-  3 : 0,
-  4 : 0,
-  5 : 0
-    },
-    {
-  0 : "A special movie dedicated to founders of the Facebook and what did went inside their friendship through the process of creating the worlds dominant mass reaching communication forum. Acted perfectly by Andrew and Jesse its a definite watch for audiences across the world.",
-  1 : 1,
-  2 : 0,
-  3 : 1,
-  4 : 0,
-  5 : 0
-    },
-    {
-  0 : "just rewatched the film last night - even if its not 100% accurate, its a masterpiece of filmmaking, sound design, cinematography.",
-  1 : 1,
-  2 : 0,
-  3 : 0,
-  4 : 0,
-  5 : 1
-    },
-    {
-  0 : "Lex Luthor created Facebook.",
-  1 : 0,
-  2 : 0,
-  3 : 0,
-  4 : 0,
-  5 : 0
-    },
-    {
-  0 : "A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up.",
-  1 : 1,
-  2 : 1,
-  3 : 0,
-  4 : 0,
-  5 : 1
+},
+{
+"0" : "He's smart, but I don't trust him.",
+"1" : 0,
+"2" : 0,
+"3" : 0,
+"4" : 0,
+"5" : 0
+}
+]
+}
+Here, 0 is attributed to the comment, 1 is attributed to the first theme, 2 to the second theme, 3 to the third, etc. 
 
-    },
-    {
-  0 : "He's smart, but I don't trust him.",
-  1 : 0,
-  2 : 0,
-  3 : 0,
-  4 : 0,
-  5 : 0
-    }
-    ]
-    }, where 0 is attributed to the comment, 1 is attributed to the first theme, 2 to the second theme, 3 to the third, etc. Only classify the comment if it directly relates to the respective theme; some comments may not belong to any topic, in which case you will generate 0 for each value of the key-value pairs.
+Note that the topics you will be given can be positive or negative, and will be 10 in total. This example is for illustrative purposes only. 
+Only classify the comment if it directly relates to the respective theme; some comments may not belong to any topic, in which case you will generate 0 for each value of the key-value pairs.
+For example, the comments 'Lex Luthor created Facebook' and 'He's smart, but I don't trust him' are both related to the trailer, but are not specific enough to fit in any category.
+Additionally, although the comment 'A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up.' mentions the praise for the acting, the comment itself is not praiseworth, so it is not attributed to the \
+topic 'Highly appreciated performances from the cast, with special mentions of actors such as Andrew Garfield and Jesse Eisenberg'.
 
-    For example, the comments 'Lex Luthor created Facebook' and 'He's smart, but I don't trust him' are both related to the trailer, but are not specific enough to fit in any category.
+The comments you have to analyze are related to a movie trailer. Here is context about this movie:\n{context}\n
+Here are the topics to use for classification:\n{all_resp}\n
+Please output in the same format as in the example a classification for these comments:\n{text} 
 
-    Additionally, although the comment 'A lot of people are talking about how great the acting is, but I do not buy it. This movie is carried by the filmmakers behind the camera, even though the story is made-up.' mentions the praise for the acting, the comment itself is not praiseworth, so it is not attributed to the
-    topic 'Highly appreciated performances from the cast, with special mentions of actors such as Andrew Garfield and Jesse Eisenberg'.
-.
-Please output in the same format for these comments {text} and the provided themes: {all_resp}. DO NOT output any other text other than the information specified and DO NOT use space brackets '()' or apostrophes like '. Please generate the full comment. It is extremely important that you fully follow these instructions:
+DO NOT output any other text other than the information specified and DO NOT use space brackets '()' or apostrophes like '. Please generate the full comment. It is extremely important that you fully follow these instructions. 
+Output:
 """
     try:
         chat = ChatGPT(
-            system_message=f"""You are an expert comment analyzer who outputs in JSON format. You are not allowed to use any apostrophes (') in your generation. Simply use double quotes("") 
-                                    instead; only use single-quotes ('') inside double-quotes if necessary, never use double-quotes within double-quotes. 
-                                    You will be prompted with many comments; please perform the analsys for every single comment, do not skip any even though it may be computationally expensive. 
-                                    Please generate the entire comment in your analysis, and only classify the comment if it directly relates to the respective theme, this is extremely important!"""
+            system_message=f"""You are an expert comment analyzer who outputs in JSON format. You are not allowed to use any apostrophes (') in your generation. Simply use double quotes("") instead; only use single-quotes ('') inside double-quotes if necessary, never use double-quotes within double-quotes. 
+You will be prompted with many comments to analyze; please perform the analysis for every single comment, do not skip any even though it may be computationally expensive. 
+Please generate the entire comment in your analysis, and only classify the comment if it directly relates to the respective theme, this is extremely important!"""
         )
-        chat.add_user_message(topic_analysis_prompt)
+        chat.add_user_message(dedent(topic_analysis_prompt))
         summarized_chunk = chat.get_response()
-        summarized_chunk = json.loads(summarized_chunk)
-        print("matching done")
-        return summarized_chunk
+        try:
+            summarized_chunk = json.loads(summarized_chunk)
+            print("matching done")
+            return summarized_chunk
+        except Exception as e:
+            try:
+                chat.add_user_message(
+                    f"There is an issue with your reply. Here is the error: {e}. Please correct your answer and output the correct json, without any parasite text:"
+                )
+                summarized_chunk = chat.get_response()
+                summarized_chunk = json.loads(summarized_chunk)
+                print(f"matching done on second try (error was {e})")
+                return summarized_chunk
+            except Exception as e:
+                print(f"Error during json: {e}")
+                print(summarized_chunk)
+                return
     except Exception as e:
         print(f"Error during matching: {e}")
-        print("text:", text)
         return None
 
 

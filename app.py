@@ -46,12 +46,16 @@ def summarize_comments(df, movie_info_str):
 
 
 @st.cache_data(show_spinner=False)
-def process_comments_in_batches(comments, summary, _match_fctn, batch_size=50):
+def process_comments_in_batches(comments, context, summary, _match_fctn, batch_size=50):
     batches = []
     for i in range(0, len(comments), batch_size):
         batches.append(comments[i : i + batch_size])
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        results = list(executor.map(partial(_match_fctn, all_resp=summary), batches))
+        results = list(
+            executor.map(
+                partial(_match_fctn, context=context, all_resp=summary), batches
+            )
+        )
     flattened_result = [
         item for sublist in results if sublist is not None for item in sublist
     ]
