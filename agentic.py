@@ -3,6 +3,7 @@ import streamlit as st
 from config import profiles
 import ast
 from textwrap import dedent
+from topic_summarization import Claude
 
 goals = {
     "Awareness": "Awareness : we are looking for marketing tactics which will generate awareness for our movie, and make it known to a large audience",

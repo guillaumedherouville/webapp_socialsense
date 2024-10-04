@@ -13,7 +13,7 @@ from sport import (
     summarize_sports,
     sports_goals,
 )
-from agentic import goals
+from agentic import goals, marketing_process
 from app import (
     extract_youtube_id,
     extract_imdb_id,
@@ -35,11 +35,11 @@ from visualization import display_comments_by_topic
 from app import display_selected_topic
 
 
-@st.cache_data(show_spinner=False)
-def summarize_comments(df, movie_info_str):
-    all_resp = comments_summarizer(df, movie_info_str, Claude)
-    resp_list = [item for item in all_resp.splitlines() if item]
-    return resp_list
+# @st.cache_data(show_spinner=False)
+# def summarize_comments(df, movie_info_str):
+#     all_resp = comments_summarizer(df, movie_info_str, ChatGPT)
+#     resp_list = [item for item in all_resp.splitlines() if item]
+#     return resp_list
 
 
 def dev_page():
@@ -171,39 +171,40 @@ def dev_page():
                 st.session_state.comments, st.session_state.movie_info_str
             )
         display_summary(st.session_state.resp_list, st.session_state.sport)
-        log_progress("Matching comments to topics...", st.session_state.start_time)
-        comments_topics_df = process_comments_in_batches(
-            st.session_state.comments,
-            st.session_state.movie_info_str,
-            st.session_state.resp_list,
-            (
-                match_topics_comments
-                if not st.session_state.sport
-                else topic_attribution_sports
-            ),
-            batch_size=min(len(st.session_state.comments) // 10, 50),
-        )
-        comments_topics_df = process_check(
-            comments_topics_df,
-            st.session_state.movie_info_str,
-            st.session_state.resp_list,
-        )
-        st.subheader("Breakdown of comments by topic 📍")
-        col1, col2 = st.columns(2, vertical_alignment="center")
-        with col2:
-            display_comments_by_topic(comments_topics_df)
-        with col1:
-            display_selected_topic(st.session_state.resp_list, comments_topics_df)
-        st.markdown("### No marketing : currently working on topic summarization only")
+        # log_progress("Matching comments to topics...", st.session_state.start_time)
+        # comments_topics_df = process_comments_in_batches(
+        #     st.session_state.comments,
+        #     st.session_state.movie_info_str,
+        #     st.session_state.resp_list,
+        #     (
+        #         match_topics_comments
+        #         if not st.session_state.sport
+        #         else topic_attribution_sports
+        #     ),
+        #     batch_size=min(len(st.session_state.comments) // 10, 50),
+        # )
+        # comments_topics_df = process_check(
+        #     comments_topics_df,
+        #     st.session_state.movie_info_str,
+        #     st.session_state.resp_list,
+        # )
+        # st.subheader("Breakdown of comments by topic 📍")
+        # col1, col2 = st.columns(2, vertical_alignment="center")
+        # with col2:
+        #     display_comments_by_topic(comments_topics_df)
+        # with col1:
+        #     display_selected_topic(st.session_state.resp_list, comments_topics_df)
+        # st.markdown("### No marketing : currently working on topic summarization only")
         # log_progress("Suggesting marketing actions...", st.session_state.start_time)
-        # if st.session_state.sport:
-        #     st.session_state.marketing_actions = sports_marketing_process(
-        #         filter_topics(comments_topics_df),
-        #         st.session_state.goal,
-        #     )
-        # else:
-        #     marketing_process(
-        #         filter_topics(comments_topics_df),
-        #         st.session_state.movie_info_str,
-        #         st.session_state.goal,
-        #     )
+        if st.session_state.sport:
+            st.session_state.marketing_actions = sports_marketing_process(
+                filter_topics(comments_topics_df),
+                st.session_state.goal,
+            )
+        else:
+            marketing_process(
+                # filter_topics(comments_topics_df),
+                st.session_state.resp_list,
+                st.session_state.movie_info_str,
+                st.session_state.goal,
+            )

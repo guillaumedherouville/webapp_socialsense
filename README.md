@@ -4,16 +4,23 @@ Streamlit webapp for SocialSense product
 
 ### Important
 
-When creating the streamlit app, specify python version = 3.10 (in advanced settings)  
-Todo : clean requirements.txt (very heavy atm with unnecessary libraries)
+If re-creating the streamlit app, specify python version = 3.10 (in advanced settings)  
+Note: requirements.txt is quite heavy atm with some unnecessary libraries (not a big deal)
 
 #### Files
 
-app.py is the main file (streamlit run app.py to launch app locally)
+main.py is the main streamlit file (cmd: streamlit run app.py to launch app locally)
+
+from there, we can choose between dev.py and prod.py  
+--> dev.py is the work in progress for development  
+--> prod.py is the 'safe' page which is used for daily streamlit usage
 
 processing for data cleaning and LLM calls  
+topic_summarization for main product functions [notably, defines LLMs]
 config for movies comparison table (7 movies with associated sentiment/emotion analysis)  
-visualization for graphs
+visualization for graphs  
+app for miscellaneous  
+sport for wwe-related functions
 
 agentic.py is a work in progress to improve marketing recommendations  
 streamlit_dev notebook is the notebook used to experiment it
@@ -38,5 +45,12 @@ In prod, the following has been implemented :
 
 In dev, the following is in progress :
 
-- Using Claude instead of ChatGPT (in topic_summarization.py, both classes can be used indifferently in the functions // double check that Claude is compliant tho)
+- Using Claude or ChatGPT (in topic_summarization.py, both classes can be used indifferently in the functions // double check that Claude is compliant tho)
 - A 'check' function (in topic_summarization.py) which is here to limit false positives when matching comments to topic, by verifying no comment is contradicting the topic it has been assigned to
+
+### Secrets
+
+Secrets can be found in the streamlit app settings, and should be 3: [uses @guillaumedherouville YT api_key (free)]  
+YT_KEY =  
+OPENAI_API_KEY =  
+ANTHROPIC_API_KEY =
